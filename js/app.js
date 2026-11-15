@@ -288,7 +288,7 @@
       } else {
         if (errBanner) {
           $('loginErrorText').innerText = res.message || 'Gagal memuat daftar akun.';
-          errBanner.style.display = 'flex';
+          errBanner.style.display = 'block';
         }
         showToast(res.message, 'error');
       }
@@ -296,7 +296,7 @@
       hideLoading();
       if (errBanner) {
         $('loginErrorText').innerText = 'Gagal memuat daftar akun: ' + err.message;
-        errBanner.style.display = 'flex';
+        errBanner.style.display = 'block';
       }
       showToast('Gagal memuat daftar akun: ' + err.message, 'error');
     }
@@ -1082,7 +1082,7 @@
     if (!siswa) return;
 
     $('muridSubHeader').innerText = `${siswa.nama} • Kelas ${siswa.kelasInfo}`;
-    $('muridSkorsingAlert').style.display = siswa.skorsing === 'Ya' ? 'flex' : 'none';
+    $('muridSkorsingAlert').style.display = siswa.skorsing === 'Ya' ? 'block' : 'none';
     $('muridPoinVal').innerText = siswa.poin;
 
     const bar = $('muridPoinBar');
@@ -2072,8 +2072,9 @@
     printCurrentStudentReport,
     downloadCsvTemplate,
     loadCsvFileToTextarea,
-    handleImportUsersCsv
-    ,
+    handleImportUsersCsv,
+    loadLoginAccounts,
+    renderAdminDataView,
     toggleBgMotion
   });
 })(window);

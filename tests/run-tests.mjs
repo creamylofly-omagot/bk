@@ -54,6 +54,17 @@ function runStaticHtmlAndContractChecks() {
   assert.ok(html.includes('<footer '), 'Expected <footer> landmark');
   assert.ok(!/is-clickable/.test(html), 'No clickable div stat-card');
 
+  // 2c. Regression guards: no Bootstrap d-flex/d-block on display:none elements, and all HTML inline handlers exported
+  for (const m of html.matchAll(/<[^>]+style="[^"]*display:\s*none[^"]*"[^>]*>/g)) {
+    assert.ok(!/\bd-(?:flex|inline-flex|block|inline-block|grid)\b/.test(m[0]), `Bootstrap display utility overrides style="display:none": ${m[0]}`);
+  }
+  const exportsMatch = appJs.match(/Object\.assign\(globalScope,\s*\{([\s\S]*?)\}\);/);
+  assert.ok(exportsMatch, 'Missing globalScope export block in js/app.js');
+  const exportedFns = new Set([...exportsMatch[1].matchAll(/\b([a-zA-Z0-9_]+)\b/g)].map(m => m[1]));
+  for (const m of html.matchAll(/on(?:click|submit|change|input)="([a-zA-Z0-9_]+)\(/g)) {
+    assert.ok(exportedFns.has(m[1]), `HTML inline handler ${m[1]}() is not exported on globalScope`);
+  }
+
   // 3. Verify all 14 Supabase RPC mappings match schema.sql parameter names & grants
   const sqlRpcs = {};
   for (const m of sql.matchAll(/CREATE OR REPLACE FUNCTION public\.(ebk_[a-z0-9_]+)\(([\s\S]*?)\)\s*RETURNS/g)) {
