@@ -12,7 +12,7 @@
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="css/styles.css?v=20261115c">
+  <link rel="stylesheet" href="css/styles.css?v=20261115d">
 </head>
 <body>
   <a href="#mainContent" class="skip-link">Lewati ke konten utama</a>
@@ -33,21 +33,21 @@
     </div>
   </div>
 
-  <!-- =====================================================================
-       1. HALAMAN LOGIN
-       ===================================================================== -->
+  <!-- Halaman login -->
   <section id="loginSection" class="login-wrapper" aria-label="Halaman Masuk E-BK">
     <div class="login-card">
       <div class="school-emblem" aria-hidden="true">
-        <i class="bi bi-shield-check"></i>
+        <i class="bi bi-mortarboard-fill"></i>
       </div>
 
       <div class="text-center mb-4">
-        <span class="school-pill mb-2">
-          <i class="bi bi-building" aria-hidden="true"></i> SMKN 1 Kota Binjai
-        </span>
         <h1 class="h3 fw-bold text-dark mb-1">Portal Bimbingan Konseling</h1>
-        <p class="text-muted small mb-0">Jl. Samanhudi No.20, Satria, Kec. Binjai Kota</p>
+        <p class="text-muted small mb-0">SMKN 1 Kota Binjai &middot; Jl. Samanhudi No.20, Satria</p>
+      </div>
+
+      <div id="loginErrorBanner" style="display: none;" class="alert alert-danger d-flex justify-content-between align-items-center gap-2 small mb-3" role="alert">
+        <span id="loginErrorText">Gagal memuat daftar akun.</span>
+        <button type="button" class="btn btn-sm btn-outline-danger fw-semibold flex-shrink-0" onclick="loadLoginAccounts()">Coba Lagi</button>
       </div>
 
       <div class="role-tabs" id="roleTabs" role="tablist" aria-label="Pilih peran pengguna">
@@ -121,19 +121,22 @@
       </form>
 
       <div class="border-top pt-3 mt-4 d-flex justify-content-between align-items-center gap-2 flex-wrap">
-        <span class="badge rounded-pill bg-light text-dark border fw-medium" id="connectionModeBadge">
+        <span class="badge bg-light text-dark border fw-medium" id="connectionModeBadge">
           <i class="bi bi-hdd-stack me-1 text-primary" aria-hidden="true"></i> Memeriksa koneksi...
         </span>
-        <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 fw-semibold" id="btnOpenConnModal" onclick="openConnectionModal()">
-          <i class="bi bi-plug me-1" aria-hidden="true"></i>Koneksi Database
-        </button>
+        <div class="d-flex align-items-center gap-3">
+          <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 fw-semibold" id="btnToggleBgMotion" aria-pressed="false" onclick="toggleBgMotion()">
+            Jeda latar
+          </button>
+          <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 fw-semibold" id="btnOpenConnModal" onclick="openConnectionModal()">
+            <i class="bi bi-plug me-1" aria-hidden="true"></i>Koneksi Database
+          </button>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- =====================================================================
-       2. APLIKASI UTAMA
-       ===================================================================== -->
+  <!-- Aplikasi utama -->
   <div id="mainAppSection" style="display: none;">
     <header class="app-navbar">
       <div class="container-fluid px-3 px-lg-4">
@@ -153,24 +156,23 @@
 
           <nav class="d-flex align-items-center gap-2" aria-label="Navigasi akun">
             <button type="button" id="btnNavSettings" style="display: none;"
-                    class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-semibold align-items-center"
+                    class="btn btn-outline-secondary btn-sm px-3 fw-semibold align-items-center"
                     onclick="toggleSettingsView()">
               <i class="bi bi-gear-fill me-1" aria-hidden="true"></i>
               <span>Pengaturan</span>
             </button>
 
-            <button type="button" class="btn btn-light border btn-sm rounded-pill px-3 fw-semibold text-primary"
+            <button type="button" class="btn btn-nav-profile btn-sm px-3 fw-semibold"
                     onclick="openProfileModal()">
               <i class="bi bi-person-circle me-1" aria-hidden="true"></i>
               <span id="navUserName">Profil</span>
             </button>
 
-            <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-semibold"
+            <button type="button" class="btn btn-outline-danger btn-sm px-3 fw-semibold"
                     aria-label="Keluar dari akun" onclick="logoutUser()">
               <i class="bi bi-box-arrow-right me-md-1" aria-hidden="true"></i>
               <span class="d-none d-md-inline">Keluar</span>
             </button>
-          </nav>
         </div>
       </div>
     </header>
@@ -197,22 +199,21 @@
         </div>
       </div>
 
+      <h1 id="appMainHeading" class="h4 fw-bold text-dark mb-2">Dashboard</h1>
+
       <!-- VIEW A: DASHBOARD GURU BK -->
       <section id="viewGuruBK" style="display: none;" aria-label="Dashboard Guru BK">
-        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-          <div>
-            <h1 class="h4 fw-bold text-dark mb-1">Dashboard Guru BK</h1>
-            <p class="text-muted small mb-0">Monitoring kedisiplinan siswa, pembinaan SP, dan layanan konseling</p>
-          </div>
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-3">
+          <p class="text-muted small mb-0">Monitoring kedisiplinan siswa, pembinaan SP, dan layanan konseling</p>
           <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-outline-primary rounded-pill px-3 fw-semibold" onclick="refreshAllData()">
+            <button type="button" class="btn btn-outline-primary px-3 fw-semibold" onclick="refreshAllData()">
               <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i> Segarkan
             </button>
-            <button type="button" class="btn btn-outline-warning text-dark rounded-pill px-3 fw-semibold" onclick="openVerifikasiLaporanModal()">
+            <button type="button" class="btn btn-amber-outline px-3" onclick="openVerifikasiLaporanModal()">
               <i class="bi bi-inbox-fill me-1" aria-hidden="true"></i>
               Laporan Guru (<span id="bkHeaderLaporanCount">0</span>)
             </button>
-            <button type="button" class="btn btn-outline-dark rounded-pill px-3 fw-semibold" onclick="openKonselingListModal()">
+            <button type="button" class="btn btn-outline-dark px-3 fw-semibold" onclick="openKonselingListModal()">
               <i class="bi bi-chat-dots-fill me-1 text-primary" aria-hidden="true"></i>
               Konseling (<span id="bkHeaderKonselingCount">0</span>)
             </button>
@@ -222,29 +223,39 @@
           </div>
         </div>
 
+        <div class="summary-strip mb-3">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-people-fill text-primary" aria-hidden="true"></i>
+            <span class="fw-semibold text-dark">Total Siswa Terdaftar:</span>
+            <span class="fw-bold tabular-nums text-dark" id="statLokalSiswa">0</span>
+            <span class="text-muted small" id="statJumlahKelas">(0 Kelas Aktif)</span>
+          </div>
+          <span class="small text-muted">Pembaruan poin otomatis menyesuaikan status SP siswa.</span>
+        </div>
+
         <div class="row g-3 mb-4">
-          <div class="col-6 col-lg-3">
-            <div class="stat-card">
+          <div class="col-12 col-md-5">
+            <button type="button" class="stat-card stat-card-btn text-start w-100" onclick="openKonselingListModal()">
               <div class="d-flex justify-content-between align-items-start gap-2">
                 <div>
-                  <span class="text-muted small fw-semibold d-block mb-1">Total Siswa</span>
-                  <h2 class="fw-bold text-dark mb-0 tabular-nums" id="statLokalSiswa">0</h2>
-                  <small class="text-primary fw-medium" id="statJumlahKelas">0 Kelas Aktif</small>
+                  <span class="text-muted small fw-semibold d-block mb-1">Antrean Konseling Menunggu</span>
+                  <div class="stat-value text-primary" id="statKonseling">0</div>
+                  <span class="small text-primary fw-semibold">Tinjau &amp; jadwalkan pengajuan</span>
                 </div>
-                <div class="stat-icon bg-primary-subtle text-primary" aria-hidden="true">
-                  <i class="bi bi-people-fill"></i>
+                <div class="stat-icon bg-info-subtle text-info-emphasis" aria-hidden="true">
+                  <i class="bi bi-chat-heart-fill"></i>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
 
-          <div class="col-6 col-lg-3">
-            <div class="stat-card">
+          <div class="col-6 col-md-4">
+            <div class="stat-card stat-card-priority">
               <div class="d-flex justify-content-between align-items-start gap-2">
                 <div>
-                  <span class="text-muted small fw-semibold d-block mb-1">Kasus SP (1–3)</span>
-                  <h2 class="fw-bold text-warning-emphasis mb-0 tabular-nums" id="statKasusSP">0</h2>
-                  <small class="text-muted">Perlu pembinaan</small>
+                  <span class="text-muted small fw-semibold d-block mb-1">Kasus SP (1-3)</span>
+                  <div class="stat-value text-warning-emphasis" id="statKasusSP">0</div>
+                  <small class="text-muted">Dalam pembinaan</small>
                 </div>
                 <div class="stat-icon bg-warning-subtle text-warning-emphasis" aria-hidden="true">
                   <i class="bi bi-exclamation-triangle-fill"></i>
@@ -253,30 +264,13 @@
             </div>
           </div>
 
-          <div class="col-6 col-lg-3">
-            <div class="stat-card is-clickable" role="button" tabindex="0"
-                 onclick="openKonselingListModal()"
-                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openKonselingListModal();}">
-              <div class="d-flex justify-content-between align-items-start gap-2">
-                <div>
-                  <span class="text-muted small fw-semibold d-block mb-1">Konseling Menunggu</span>
-                  <h2 class="fw-bold text-info-emphasis mb-0 tabular-nums" id="statKonseling">0</h2>
-                  <small class="text-primary fw-semibold">Klik tinjau pengajuan <i class="bi bi-chevron-right" aria-hidden="true"></i></small>
-                </div>
-                <div class="stat-icon bg-info-subtle text-info-emphasis" aria-hidden="true">
-                  <i class="bi bi-chat-heart-fill"></i>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-6 col-lg-3">
+          <div class="col-6 col-md-3">
             <div class="stat-card">
               <div class="d-flex justify-content-between align-items-start gap-2">
                 <div>
                   <span class="text-muted small fw-semibold d-block mb-1">Skorsing</span>
-                  <h2 class="fw-bold text-danger mb-0 tabular-nums" id="statSkorsing">0</h2>
-                  <small class="text-muted">Masa pembinaan ortu</small>
+                  <div class="stat-value text-danger" id="statSkorsing">0</div>
+                  <small class="text-muted">Pembinaan ortu</small>
                 </div>
                 <div class="stat-icon bg-danger-subtle text-danger" aria-hidden="true">
                   <i class="bi bi-slash-circle-fill"></i>
@@ -332,10 +326,10 @@
           <div class="p-3 bg-light border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="small text-muted" id="bkTotalSummaryText">Menampilkan <strong>0</strong> siswa</div>
             <div class="d-flex flex-wrap gap-2">
-              <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold" onclick="exportStudentsCsv()">
+              <button type="button" class="btn btn-sm btn-outline-success px-3 fw-semibold" onclick="exportStudentsCsv()">
                 <i class="bi bi-download me-1" aria-hidden="true"></i> Unduh CSV
               </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+              <button type="button" class="btn btn-sm btn-outline-secondary px-3"
                       id="btnToggleTabelBK" aria-expanded="true" onclick="toggleTabelBK()">
                 <i class="bi bi-chevron-up me-1" aria-hidden="true"></i> Sembunyikan Daftar
               </button>
@@ -344,7 +338,7 @@
         </div>
 
         <div class="text-center pb-2">
-          <button type="button" class="btn btn-dark rounded-pill px-4 py-2 fw-semibold" onclick="openKonselingListModal()">
+          <button type="button" class="btn btn-dark px-4 py-2 fw-semibold" onclick="openKonselingListModal()">
             <i class="bi bi-chat-dots-fill me-2 text-info" aria-hidden="true"></i>
             Tinjau Antrean &amp; Jadwal Konseling (<span id="ovalKonselingCount">0</span>)
           </button>
@@ -354,11 +348,10 @@
       <!-- VIEW B: MENU MURID & ORANG TUA -->
       <section id="viewMurid" style="display: none;" aria-label="Portal Siswa dan Orang Tua">
         <div class="mb-3">
-          <h1 class="h4 fw-bold text-dark mb-1">Portal Kedisiplinan &amp; Konseling</h1>
           <p class="text-muted small mb-0" id="muridSubHeader">SMKN 1 Kota Binjai</p>
         </div>
 
-        <div id="muridSkorsingAlert" style="display: none;" class="alert alert-danger rounded-4 d-flex align-items-center gap-3 mb-4" role="alert">
+        <div id="muridSkorsingAlert" style="display: none;" class="alert alert-danger rounded-3 d-flex align-items-center gap-3 mb-4" role="alert">
           <i class="bi bi-exclamation-octagon-fill fs-4" aria-hidden="true"></i>
           <div>
             <strong>Status Skorsing Aktif:</strong> Siswa sedang dalam masa pembinaan bersama orang tua. Silakan hubungi Guru BK.
@@ -370,7 +363,7 @@
             <div class="stat-card">
               <span class="text-muted small fw-semibold d-block mb-1">Poin Disiplin</span>
               <div class="d-flex align-items-baseline justify-content-between mb-2">
-                <h2 class="fw-bold text-primary mb-0 tabular-nums"><span id="muridPoinVal">100</span><span class="fs-6 text-muted">/100</span></h2>
+                <div class="stat-value text-primary mb-0"><span id="muridPoinVal">100</span><span class="fs-6 text-muted">/100</span></div>
                 <span class="badge bg-primary-subtle text-primary">Maks 100</span>
               </div>
               <div class="progress mb-2" style="height: 10px; border-radius: 10px;">
@@ -473,10 +466,7 @@
       <!-- VIEW C: MENU GURU / WALI KELAS -->
       <section id="viewGuru" style="display: none;" aria-label="Dashboard Guru dan Wali Kelas">
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-          <div>
-            <h1 class="h4 fw-bold text-dark mb-1">Dashboard Wali Kelas &amp; Guru</h1>
-            <p class="text-muted small mb-0" id="guruSubHeader">Monitoring Siswa Binaan SMKN 1 Kota Binjai</p>
-          </div>
+          <p class="text-muted small mb-0" id="guruSubHeader">Monitoring Siswa Binaan SMKN 1 Kota Binjai</p>
           <button type="button" class="btn btn-primary-action" onclick="openCatatPoinModal()">
             <i class="bi bi-send-plus-fill me-1" aria-hidden="true"></i> Ajukan Laporan Siswa
           </button>
@@ -488,7 +478,7 @@
               <div class="d-flex justify-content-between align-items-center gap-2">
                 <div>
                   <span class="text-muted small fw-semibold d-block mb-1">Siswa Binaan</span>
-                  <h2 class="fw-bold text-primary mb-0 tabular-nums" id="guruStatBinaan">0</h2>
+                  <div class="stat-value text-primary" id="guruStatBinaan">0</div>
                   <small class="text-muted" id="guruLabelKelasBinaan">Semua Kelas</small>
                 </div>
                 <div class="stat-icon bg-primary-subtle text-primary" aria-hidden="true">
@@ -503,8 +493,8 @@
               <div class="d-flex justify-content-between align-items-center gap-2">
                 <div>
                   <span class="text-muted small fw-semibold d-block mb-1">Perlu Perhatian (SP)</span>
-                  <h2 class="fw-bold text-danger mb-0 tabular-nums" id="guruStatPerhatian">0</h2>
-                  <small class="text-muted">Status SP 1 – SP 3</small>
+                  <div class="stat-value text-danger" id="guruStatPerhatian">0</div>
+                  <small class="text-muted">Status SP 1 - SP 3</small>
                 </div>
                 <div class="stat-icon bg-danger-subtle text-danger" aria-hidden="true">
                   <i class="bi bi-exclamation-octagon-fill"></i>
@@ -518,7 +508,7 @@
               <div class="d-flex justify-content-between align-items-center gap-2">
                 <div>
                   <span class="text-muted small fw-semibold d-block mb-1">Laporan Saya</span>
-                  <h2 class="fw-bold text-success mb-0 tabular-nums" id="guruStatLaporan">0</h2>
+                  <div class="stat-value text-success" id="guruStatLaporan">0</div>
                   <small class="text-muted" id="guruStatLaporanDetail">Menunggu verifikasi BK</small>
                 </div>
                 <div class="stat-icon bg-success-subtle text-success-emphasis" aria-hidden="true">
@@ -593,10 +583,10 @@
 
       <!-- VIEW D: MENU ORANG TUA (WRAPPER BANNER) -->
       <section id="viewOrtu" style="display: none;" aria-label="Informasi Orang Tua">
-        <div class="alert alert-info border-0 rounded-4 shadow-sm mb-4 d-flex align-items-center gap-3">
+        <div class="alert alert-info border rounded-3 mb-4 d-flex align-items-center gap-3">
           <i class="bi bi-house-heart-fill fs-3 text-primary" aria-hidden="true"></i>
           <div>
-            <h2 class="h6 fw-bold mb-0">Portal Orang Tua / Wali Murid</h2>
+            <p class="fw-bold mb-0">Portal Orang Tua / Wali Murid</p>
             <small>Anda terhubung untuk memantau perkembangan poin dan jadwal pembinaan putra/putri Anda.</small>
           </div>
         </div>
@@ -606,13 +596,8 @@
       <!-- VIEW E: HALAMAN PENGATURAN (GURU BK) -->
       <section id="viewPengaturan" style="display: none;" aria-label="Pengaturan Akun dan Database">
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
-          <div>
-            <h1 class="h4 fw-bold text-dark mb-1">
-              <i class="bi bi-gear-wide-connected text-primary me-2" aria-hidden="true"></i>Pengaturan Sistem &amp; Akun
-            </h1>
-            <p class="text-muted small mb-0">Kelola akun Murid, Guru, Orang Tua, Guru BK, dan koneksi database</p>
-          </div>
-          <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-semibold" onclick="toggleSettingsView()">
+          <p class="text-muted small mb-0">Kelola akun Murid, Guru, Orang Tua, Guru BK, dan koneksi database</p>
+          <button type="button" class="btn btn-outline-dark btn-sm px-3 fw-semibold" onclick="toggleSettingsView()">
             <i class="bi bi-arrow-left me-1" aria-hidden="true"></i> Kembali ke Dashboard
           </button>
         </div>
@@ -715,7 +700,7 @@
                   <h2 class="h5 fw-bold mb-0"><i class="bi bi-file-earmark-spreadsheet-fill text-success me-2" aria-hidden="true"></i>Import Massal Akun (CSV)</h2>
                   <small class="text-muted">Format: <code>Nama,Kelas</code> (pakai peran bawaan) atau <code>Role,Nama,Kelas_Info,Password,Terkait_ID_Siswa</code>. Sandi kosong otomatis <code>123456</code>.</small>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" onclick="downloadCsvTemplate()">
+                <button type="button" class="btn btn-sm btn-outline-secondary px-3 fw-semibold" onclick="downloadCsvTemplate()">
                   <i class="bi bi-download me-1" aria-hidden="true"></i> Unduh Template
                 </button>
               </div>
@@ -749,17 +734,12 @@
       <!-- VIEW F: KELOLA SEMUA DATA (KHUSUS ADMIN) -->
       <section id="viewAdminData" style="display: none;" aria-label="Kelola Semua Data Operator">
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
-          <div>
-            <h1 class="h4 fw-bold text-dark mb-1">
-              <i class="bi bi-database-fill-gear text-primary me-2" aria-hidden="true"></i>Kelola Semua Data Sistem
-            </h1>
-            <p class="text-muted small mb-0">Tambah dan hapus catatan poin, konseling, laporan guru, dan pengaturan sekolah</p>
-          </div>
+          <p class="text-muted small mb-0">Tambah dan hapus catatan poin, konseling, laporan guru, dan pengaturan sekolah</p>
           <div class="d-flex flex-wrap gap-2">
-            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold" onclick="toggleSettingsView()">
+            <button type="button" class="btn btn-outline-primary btn-sm px-3 fw-semibold" onclick="toggleSettingsView()">
               <i class="bi bi-people-fill me-1" aria-hidden="true"></i> Kelola Akun (Siswa/Guru/Ortu/BK)
             </button>
-            <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold" onclick="openCatatPoinModal()">
+            <button type="button" class="btn btn-primary btn-sm px-3 fw-semibold" onclick="openCatatPoinModal()">
               <i class="bi bi-plus-circle me-1" aria-hidden="true"></i> Tambah Catatan Poin
             </button>
           </div>
@@ -926,6 +906,13 @@
       </section>
 
     </main>
+
+    <footer class="app-footer">
+      <div class="container-fluid px-3 px-lg-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span id="footerSchoolName">SMKN 1 Kota Binjai &middot; Layanan Bimbingan Konseling</span>
+        <span id="footerSchoolYear" class="small">Tahun Ajaran 2026/2027</span>
+      </div>
+    </footer>
   </div>
 
   <!-- MODAL 1: CATAT PELANGGARAN / PRESTASI -->
@@ -1122,7 +1109,7 @@
           <input type="password" id="sandiBaru" class="form-control form-control-sm mb-2" placeholder="Sandi baru (min. 6 karakter)" minlength="6" autocomplete="new-password" required>
           <button type="submit" class="btn btn-primary btn-sm w-100 fw-semibold">Simpan Sandi Baru</button>
         </form>
-        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill mt-3" data-bs-dismiss="modal">Tutup</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm mt-3" data-bs-dismiss="modal">Tutup</button>
       </div>
     </div>
   </div>
@@ -1188,8 +1175,8 @@
   <section id="printReportArea" aria-hidden="true"></section>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="js/local-backend.js?v=20261115c"></script>
-  <script src="js/api.js?v=20261115c"></script>
-  <script src="js/app.js?v=20261115c"></script>
+  <script src="js/local-backend.js?v=20261115d"></script>
+  <script src="js/api.js?v=20261115d"></script>
+  <script src="js/app.js?v=20261115d"></script>
 </body>
 </html>

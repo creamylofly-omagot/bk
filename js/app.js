@@ -1,6 +1,4 @@
-/* ==========================================================================
-   E-BK SMKN 1 Kota Binjai — Frontend Application Controller
-   ========================================================================== */
+/* E-BK SMKN 1 Kota Binjai: frontend application controller */
 (function (globalScope) {
   'use strict';
 
@@ -132,6 +130,15 @@
     btn.setAttribute('aria-pressed', show ? 'true' : 'false');
     btn.setAttribute('aria-label', show ? 'Sembunyikan sandi' : 'Tampilkan sandi');
     btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+  }
+
+  function toggleBgMotion() {
+    const wrapper = $('loginSection');
+    const btn = $('btnToggleBgMotion');
+    if (!wrapper || !btn) return;
+    const paused = wrapper.classList.toggle('is-motion-paused');
+    btn.setAttribute('aria-pressed', paused ? 'true' : 'false');
+    btn.innerText = paused ? 'Putar latar' : 'Jeda latar';
   }
 
   function clearLoginSelection() {
@@ -267,10 +274,10 @@
     loadLoginAccounts();
   }
 
-  // =========================================================================
-  // LOGIN & KONEKSI DATABASE
-  // =========================================================================
+  // Login dan koneksi database
   async function loadLoginAccounts() {
+    const errBanner = $('loginErrorBanner');
+    if (errBanner) errBanner.style.display = 'none';
     showLoading('Menghubungkan ke Database SMKN 1 Kota Binjai...');
     try {
       const res = await BackendAPI.call('getLoginAccounts');
@@ -279,10 +286,18 @@
         allAccounts = res.data;
         renderLoginListbox('');
       } else {
+        if (errBanner) {
+          $('loginErrorText').innerText = res.message || 'Gagal memuat daftar akun.';
+          errBanner.style.display = 'flex';
+        }
         showToast(res.message, 'error');
       }
     } catch (err) {
       hideLoading();
+      if (errBanner) {
+        $('loginErrorText').innerText = 'Gagal memuat daftar akun: ' + err.message;
+        errBanner.style.display = 'flex';
+      }
       showToast('Gagal memuat daftar akun: ' + err.message, 'error');
     }
   }
@@ -446,9 +461,7 @@
     else loadLoginAccounts();
   }
 
-  // =========================================================================
-  // SINKRONISASI & ROUTING TAMPILAN
-  // =========================================================================
+  // Sinkronisasi dan routing tampilan
   async function refreshAllData() {
     showLoading('Menyinkronkan data...');
     try {
@@ -493,6 +506,16 @@
     if (sid) renderDashboardMurid(sid);
   }
 
+  function updateShellMetadata(headingText) {
+    const h1 = $('appMainHeading');
+    if (h1) h1.innerText = headingText;
+    const cfg = appData.schoolConfig || {};
+    const namaSekolah = cfg.namaSekolah || 'SMKN 1 Kota Binjai';
+    const tahun = cfg.tahunAjaran || '2026/2027';
+    if ($('footerSchoolName')) $('footerSchoolName').innerText = `${namaSekolah} · Layanan Bimbingan Konseling`;
+    if ($('footerSchoolYear')) $('footerSchoolYear').innerText = `Tahun Ajaran ${tahun}`;
+  }
+
   function renderActiveRoleView() {
     ['viewGuruBK', 'viewMurid', 'viewGuru', 'viewOrtu', 'viewPengaturan', 'viewAdminData'].forEach(id => {
       $(id).style.display = 'none';
@@ -502,6 +525,7 @@
     const btnSettings = $('btnNavSettings');
     if (isSettingsOpen && isOperator) {
       btnSettings.classList.replace('btn-outline-secondary', 'btn-primary');
+      updateShellMetadata('Pengaturan Sistem & Akun');
       $('viewPengaturan').style.display = 'block';
       renderSettingsView();
       return;
@@ -512,16 +536,20 @@
       populateAdminPreviewStudents();
       $('adminPreviewStudentSelect').style.display = adminActiveView === 'murid' ? 'inline-block' : 'none';
       if (adminActiveView === 'guru') {
+        updateShellMetadata('Dashboard Wali Kelas & Guru');
         $('viewGuru').style.display = 'block';
         renderDashboardGuru();
       } else if (adminActiveView === 'murid') {
+        updateShellMetadata('Portal Kedisiplinan & Konseling');
         $('viewMurid').style.display = 'block';
         $('counselingRequestCard').style.display = 'none';
         renderAdminPreviewStudent();
       } else if (adminActiveView === 'data') {
+        updateShellMetadata('Kelola Semua Data Sistem');
         $('viewAdminData').style.display = 'block';
         renderAdminDataView();
       } else {
+        updateShellMetadata('Dashboard Guru BK');
         $('viewGuruBK').style.display = 'block';
         renderDashboardGuruBK();
       }
@@ -529,29 +557,31 @@
     }
 
     if (currentUser.role === 'Guru_BK') {
+      updateShellMetadata('Dashboard Guru BK');
       $('viewGuruBK').style.display = 'block';
       renderDashboardGuruBK();
     } else if (currentUser.role === 'Murid') {
+      updateShellMetadata('Portal Kedisiplinan & Konseling');
       $('viewMurid').style.display = 'block';
       $('counselingRequestCard').style.display = '';
       renderDashboardMurid(currentUser.id);
     } else if (currentUser.role === 'Guru') {
+      updateShellMetadata('Dashboard Wali Kelas & Guru');
       $('viewGuru').style.display = 'block';
       renderDashboardGuru();
     } else if (currentUser.role === 'Ortu') {
+      updateShellMetadata('Portal Orang Tua & Siswa');
       $('viewOrtu').style.display = 'block';
       renderDashboardOrtu();
     }
   }
 
-  // =========================================================================
-  // DASHBOARD GURU BK
-  // =========================================================================
+  // Dashboard Guru BK
   function renderDashboardGuruBK() {
     const students = appData.students;
     const uniqueClasses = [...new Set(students.map(s => s.kelasInfo))];
     $('statLokalSiswa').innerText = students.length;
-    $('statJumlahKelas').innerText = `${uniqueClasses.length} Kelas Aktif`;
+    $('statJumlahKelas').innerText = `(${uniqueClasses.length} Kelas Aktif)`;
 
     const spCount = students.filter(s => s.statusSP !== 'Aman').length;
     $('statKasusSP').innerText = spCount;
@@ -611,10 +641,10 @@
           <td>${getSPBadgeHtml(s.statusSP)}</td>
           <td class="small">${ketText}</td>
           <td class="text-end text-nowrap">
-            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 me-1" data-riwayat-id="${esc(s.id)}">
+            <button type="button" class="btn btn-sm btn-outline-secondary px-3 me-1" data-riwayat-id="${esc(s.id)}">
               Riwayat
             </button>
-            <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" data-tindakan-id="${esc(s.id)}">
+            <button type="button" class="btn btn-sm btn-outline-primary px-3" data-tindakan-id="${esc(s.id)}">
               Tindakan
             </button>
           </td>
@@ -778,7 +808,7 @@
             <td>${esc(k.tanggal)}</td>
             <td>${esc(k.topik)}</td>
             <td>${esc(k.status)}</td>
-            <td>${esc(k.jadwal)} — ${esc(k.catatanBK)}</td>
+            <td>${esc(k.jadwal)}: ${esc(k.catatanBK)}</td>
           </tr>`).join('')}</tbody>
         </table>`;
 
@@ -878,8 +908,8 @@
               </div>
             </div>
           ` : `
-            <div class="small ${isRejected ? 'text-danger' : 'text-success'} fw-semibold">
-              ${isRejected ? 'Ditolak' : 'Disetujui (' + esc(item.bobotDisetujui) + ' poin)'} oleh ${esc(item.diprosesOleh)} (${esc(item.tanggalProses)}) — ${esc(item.catatanBK)}
+            <div class="small ${isRejected ? 'text-danger' : 'text-success-emphasis'} fw-semibold">
+              ${isRejected ? 'Ditolak' : 'Disetujui (' + esc(item.bobotDisetujui) + ' poin)'} oleh ${esc(item.diprosesOleh)} (${esc(item.tanggalProses)}): ${esc(item.catatanBK)}
             </div>
           `}
         `;
@@ -960,9 +990,9 @@
             </div>
           ` : isScheduled ? `
             <div class="row g-2 align-items-end">
-              <div class="col-12 col-md-8 small text-success fw-semibold">
+              <div class="col-12 col-md-8 small text-success-emphasis fw-semibold">
                 <i class="bi bi-calendar-check me-1" aria-hidden="true"></i>
-                Jadwal: ${esc(item.jadwal)} — (${esc(item.catatanBK)})
+                Jadwal: ${esc(item.jadwal)} (${esc(item.catatanBK)})
                 <input type="text" id="hasilKsInput_${esc(item.id)}" class="form-control form-control-sm mt-2"
                        placeholder="Catatan hasil konseling (opsional) sebelum ditandai selesai...">
               </div>
@@ -975,7 +1005,7 @@
           ` : `
             <div class="small ${isRejected ? 'text-danger' : 'text-secondary'} fw-semibold">
               <i class="bi ${isRejected ? 'bi-x-circle' : 'bi-check-circle-fill'} me-1" aria-hidden="true"></i>
-              ${isRejected ? 'Ditolak' : 'Selesai (' + esc(item.jadwal) + ')'} — (${esc(item.catatanBK)})
+              ${isRejected ? 'Ditolak' : 'Selesai (' + esc(item.jadwal) + ')'} (${esc(item.catatanBK)})
             </div>
           `}
         `;
@@ -1046,9 +1076,7 @@
     }
   }
 
-  // =========================================================================
-  // DASHBOARD MURID & ORANG TUA
-  // =========================================================================
+  // Dashboard Murid dan Orang Tua
   function renderDashboardMurid(siswaId) {
     const siswa = appData.students.find(s => String(s.id) === String(siswaId));
     if (!siswa) return;
@@ -1173,9 +1201,7 @@
     renderDashboardMurid(childId);
   }
 
-  // =========================================================================
-  // DASHBOARD GURU / WALI KELAS
-  // =========================================================================
+  // Dashboard Guru dan Wali Kelas
   function getGuruBinaanKelas() {
     const isWali = /wali kelas/i.test(currentUser.kelasInfo);
     return isWali ? currentUser.kelasInfo.replace(/Wali Kelas/i, '').trim() : '';
@@ -1296,9 +1322,7 @@
     });
   }
 
-  // =========================================================================
-  // MODAL CATAT POIN, TINDAKAN & PROFIL
-  // =========================================================================
+  // Modal catat poin, tindakan, dan profil
   function populateStudentSelectOptions() {
     const select = $('inputCatatanSiswa');
     select.innerHTML = '<option value="">-- Pilih Nama Siswa --</option>';
@@ -1402,9 +1426,7 @@
     }
   }
 
-  // =========================================================================
-  // PENGATURAN (CRUD AKUN & SETUP DATABASE)
-  // =========================================================================
+  // Pengaturan akun dan setup database
   function toggleSettingsView() {
     if (!currentUser || currentUser.role !== 'Admin') return;
     isSettingsOpen = !isSettingsOpen;
@@ -1888,9 +1910,7 @@
     try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) {}
     return false;
   }
-  // =========================================================================
-  // EVENT BINDINGS & INIT
-  // =========================================================================
+  // Event bindings dan inisialisasi
   document.addEventListener('DOMContentLoaded', async () => {
     ['bkTabelSiswaBody', 'muridTabelRiwayat', 'guruTabelSiswaBody', 'guruTabelLaporanBody', 'crudTabelUsersBody', 'riwayatSiswaCatatanBody', 'adminTabelCatatanBody', 'adminTabelKonselingBody', 'adminTabelLaporanBody'].forEach(id => {
       const el = $(id);
@@ -2053,5 +2073,7 @@
     downloadCsvTemplate,
     loadCsvFileToTextarea,
     handleImportUsersCsv
+    ,
+    toggleBgMotion
   });
 })(window);

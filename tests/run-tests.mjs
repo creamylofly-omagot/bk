@@ -41,6 +41,19 @@ function runStaticHtmlAndContractChecks() {
     new vm.Script(code, { filename: rel });
   }
 
+  // 2b. Antislop hygiene: DESIGN.md present, zero em dashes in UI/CSS/JS, zero banner comments, 1 h1 inside main, footer landmark
+  const designMd = fs.readFileSync(path.join(root, 'DESIGN.md'), 'utf8');
+  assert.match(designMd, /Dial:\s*ENERGY 2 \/ RHYTHM 2 \/ MOTION 2/);
+  const css = fs.readFileSync(path.join(root, 'css/styles.css'), 'utf8');
+  for (const [label, content] of [['index.html', html], ['css/styles.css', css], ['js/app.js', appJs]]) {
+    assert.ok(!content.includes('—'), `${label} must not contain em dash (R-02)`);
+    assert.ok(!/====/.test(content), `${label} must not contain decorative ==== banners`);
+  }
+  const mainHtml = html.slice(html.indexOf('<main'), html.indexOf('</main>'));
+  assert.equal((mainHtml.match(/<h1\b/g) || []).length, 1, 'Expected exactly 1 <h1> inside <main>');
+  assert.ok(html.includes('<footer '), 'Expected <footer> landmark');
+  assert.ok(!/is-clickable/.test(html), 'No clickable div stat-card');
+
   // 3. Verify all 14 Supabase RPC mappings match schema.sql parameter names & grants
   const sqlRpcs = {};
   for (const m of sql.matchAll(/CREATE OR REPLACE FUNCTION public\.(ebk_[a-z0-9_]+)\(([\s\S]*?)\)\s*RETURNS/g)) {

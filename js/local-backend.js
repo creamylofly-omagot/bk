@@ -1,7 +1,4 @@
-/* ==========================================================================
-   E-BK SMKN 1 Kota Binjai — Standalone Browser LocalBackend (localStorage)
-   Paritas penuh dengan supabase/schema.sql dan Code.gs.
-   ========================================================================== */
+/* E-BK SMKN 1 Kota Binjai: standalone browser LocalBackend (localStorage) */
 (function (globalScope) {
   'use strict';
 

@@ -1,7 +1,4 @@
-/* ==========================================================================
-   E-BK SMKN 1 Kota Binjai — Backend Transport Adapter
-   Urutan prioritas: GAS Native -> Supabase RPC -> GAS Web App -> Mode Lokal
-   ========================================================================== */
+/* E-BK SMKN 1 Kota Binjai: backend transport adapter (GAS Native -> Supabase RPC -> GAS Web App -> Mode Lokal) */
 (function (globalScope) {
   'use strict';
 
