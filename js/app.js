@@ -132,15 +132,6 @@
     btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
   }
 
-  function toggleBgMotion() {
-    const wrapper = $('loginSection');
-    const btn = $('btnToggleBgMotion');
-    if (!wrapper || !btn) return;
-    const paused = wrapper.classList.toggle('is-motion-paused');
-    btn.setAttribute('aria-pressed', paused ? 'true' : 'false');
-    btn.innerText = paused ? 'Putar latar' : 'Jeda latar';
-  }
-
   function clearLoginSelection() {
     $('loginAccountInput').value = '';
     $('loginSelectedUserId').value = '';
@@ -2074,7 +2065,6 @@
     loadCsvFileToTextarea,
     handleImportUsersCsv,
     loadLoginAccounts,
-    renderAdminDataView,
-    toggleBgMotion
+    renderAdminDataView
   });
 })(window);

@@ -1,4 +1,4 @@
-# DESIGN.md — E-BK SMKN 1 Kota Binjai
+# DESIGN.md: E-BK SMKN 1 Kota Binjai
 
 Dial: ENERGY 2 / RHYTHM 2 / MOTION 2
 
@@ -28,5 +28,5 @@ Dial: ENERGY 2 / RHYTHM 2 / MOTION 2
 - **Radius scale:** `10px` untuk tombol & input, `14px` untuk kartu & modal, `999px` hanya untuk lencana status (`badge-sp`) dan filter toggle.
 
 ## Motion & Background (`R-01`, `R-19`, `R-39`)
-- **Login backdrop:** Gradasi bergerak halus (`#1e3a8a` -> `#0f4c81` -> `#0f766e`) dipakai khusus pada halaman login untuk memisahkan gerbang masuk dari ruang kerja datar di dalam aplikasi, dilengkapi tombol jeda/putar (`#btnToggleBgMotion`) dan menghormati `prefers-reduced-motion: reduce`.
+- **Login backdrop:** Gradasi bergerak dinamis (`#172554` -> `#1d4ed8` -> `#0f4c81` -> `#0d9488`, siklus 5-6.5 detik GPU `transform`-only) dipakai khusus pada halaman login untuk memisahkan gerbang masuk dari ruang kerja datar di dalam aplikasi, dan menghormati `prefers-reduced-motion: reduce` (tombol jeda dihilangkan atas permintaan eksplisit pemilik).
 - **In-app transitions:** Hanya pada pembukaan kartu login, combobox, dan modal; kartu stat tidak diberi animasi stagger massal.
