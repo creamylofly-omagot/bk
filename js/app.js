@@ -12,7 +12,8 @@
   let isTabelBKExpanded = true;
   let bkStatusFilter = 'all'; // 'all' | 'sp' | 'skorsing'
   let guruOnlyBinaan = false;
-  let useUsernameLogin = false;
+  let comboboxActiveIndex = -1;
+  let comboboxMatches = [];
   let adminActiveView = 'bk';
   let sessionToken = null;
   let loadingTimer = null;
@@ -131,32 +132,118 @@
     btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
   }
 
-  function resetLoginInputMode() {
-    useUsernameLogin = false;
-    $('loginAccountSelect').style.display = '';
-    $('loginAccountSelect').required = true;
-    $('loginUsernameInput').style.display = 'none';
-    $('loginUsernameInput').required = false;
-    $('loginUsernameInput').value = '';
-    $('loginAccountLabel').setAttribute('for', 'loginAccountSelect');
-    $('loginAccountLabel').innerHTML = `Pilih Akun (<span id="selectedRoleLabel">${esc(ROLE_LABELS[selectedLoginRole] || selectedLoginRole)}</span>)`;
-    $('btnToggleLoginMode').innerText = 'Pakai Username';
+  function clearLoginSelection() {
+    $('loginAccountInput').value = '';
+    $('loginSelectedUserId').value = '';
+    closeLoginListbox();
   }
 
-  function toggleLoginInputMode() {
-    useUsernameLogin = !useUsernameLogin;
-    if (useUsernameLogin) {
-      $('loginAccountSelect').style.display = 'none';
-      $('loginAccountSelect').required = false;
-      $('loginUsernameInput').style.display = '';
-      $('loginUsernameInput').required = true;
-      $('loginAccountLabel').setAttribute('for', 'loginUsernameInput');
-      $('loginAccountLabel').innerText = 'ID / Username Akun';
-      $('btnToggleLoginMode').innerText = 'Pilih dari Daftar';
-      $('loginUsernameInput').focus();
-    } else {
-      resetLoginInputMode();
+  function getRoleAccounts() {
+    return allAccounts.filter(acc => acc.role === selectedLoginRole);
+  }
+
+  function renderLoginListbox(queryText) {
+    const listbox = $('loginAccountListbox');
+    const q = String(queryText == null ? $('loginAccountInput').value : queryText).toLowerCase().trim();
+    const roleAccounts = getRoleAccounts();
+
+    comboboxMatches = q
+      ? roleAccounts.filter(acc =>
+          acc.nama.toLowerCase().includes(q) ||
+          acc.kelasInfo.toLowerCase().includes(q) ||
+          acc.id.toLowerCase().includes(q)
+        )
+      : roleAccounts;
+    comboboxActiveIndex = -1;
+    $('loginAccountInput').removeAttribute('aria-activedescendant');
+
+    listbox.innerHTML = '';
+    if (comboboxMatches.length === 0) {
+      if (q) {
+        listbox.style.display = 'none';
+        $('loginAccountInput').setAttribute('aria-expanded', 'false');
+        $('btnToggleAccountList').setAttribute('aria-expanded', 'false');
+        return false;
+      }
+      listbox.innerHTML = '<li class="combobox-option text-muted" aria-disabled="true">Tidak ada akun pada peran ini</li>';
+      return true;
     }
+
+    comboboxMatches.forEach((acc, idx) => {
+      const li = document.createElement('li');
+      li.id = 'loginOpt_' + idx;
+      li.className = 'combobox-option';
+      li.setAttribute('role', 'option');
+      li.setAttribute('aria-selected', $('loginSelectedUserId').value === acc.id ? 'true' : 'false');
+      li.dataset.accId = acc.id;
+      li.innerHTML = `<span class="fw-semibold">${esc(acc.nama)}</span><span class="combobox-option-meta">${esc(acc.kelasInfo)}</span>`;
+      listbox.appendChild(li);
+    });
+    return true;
+  }
+
+  function openLoginListbox(showAll) {
+    const hasContent = renderLoginListbox(showAll ? '' : $('loginAccountInput').value);
+    if (!hasContent) return;
+    $('loginAccountListbox').style.display = 'block';
+    $('loginAccountInput').setAttribute('aria-expanded', 'true');
+    $('btnToggleAccountList').setAttribute('aria-expanded', 'true');
+  }
+
+  function closeLoginListbox() {
+    const listbox = $('loginAccountListbox');
+    if (!listbox) return;
+    listbox.style.display = 'none';
+    comboboxActiveIndex = -1;
+    $('loginAccountInput').setAttribute('aria-expanded', 'false');
+    $('loginAccountInput').removeAttribute('aria-activedescendant');
+    $('btnToggleAccountList').setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleLoginDropdown() {
+    const isOpen = $('loginAccountListbox').style.display === 'block';
+    if (isOpen) {
+      closeLoginListbox();
+    } else {
+      openLoginListbox(true);
+      $('loginAccountInput').focus();
+    }
+  }
+
+  function selectComboboxAccount(accId) {
+    const acc = allAccounts.find(x => x.id === accId);
+    if (!acc) return;
+    $('loginAccountInput').value = `${acc.nama} (${acc.kelasInfo})`;
+    $('loginSelectedUserId').value = acc.id;
+    closeLoginListbox();
+    $('loginPassword').focus();
+  }
+
+  function updateComboboxHighlight(newIdx) {
+    const listbox = $('loginAccountListbox');
+    const options = [...listbox.querySelectorAll('.combobox-option[data-acc-id]')];
+    if (options.length === 0) return;
+    if (newIdx < 0) newIdx = options.length - 1;
+    if (newIdx >= options.length) newIdx = 0;
+    options.forEach((el, i) => el.classList.toggle('is-active', i === newIdx));
+    comboboxActiveIndex = newIdx;
+    const activeEl = options[newIdx];
+    $('loginAccountInput').setAttribute('aria-activedescendant', activeEl.id);
+    activeEl.scrollIntoView({ block: 'nearest' });
+  }
+
+  function resolveLoginUserId() {
+    const pickedId = $('loginSelectedUserId').value.trim();
+    if (pickedId) return pickedId;
+    const raw = $('loginAccountInput').value.trim();
+    if (!raw) return '';
+    const byId = allAccounts.find(acc => acc.id === raw);
+    if (byId) return byId.id;
+    const roleMatches = getRoleAccounts().filter(
+      acc => acc.nama.toLowerCase() === raw.toLowerCase() || `${acc.nama} (${acc.kelasInfo})`.toLowerCase() === raw.toLowerCase()
+    );
+    if (roleMatches.length === 1) return roleMatches[0].id;
+    return raw;
   }
 
   function forceLogout() {
@@ -172,7 +259,7 @@
     $('loginPassword').value = '';
     $('counselingRequestCard').style.display = '';
     $('adminControlBar').style.display = 'none';
-    resetLoginInputMode();
+    clearLoginSelection();
     hideLoading();
     loadLoginAccounts();
   }
@@ -187,7 +274,7 @@
       hideLoading();
       if (res.success) {
         allAccounts = res.data;
-        populateLoginDropdown();
+        renderLoginListbox('');
       } else {
         showToast(res.message, 'error');
       }
@@ -206,31 +293,15 @@
     btnEl.classList.add('active');
     btnEl.setAttribute('aria-selected', 'true');
     $('selectedRoleLabel').innerText = ROLE_LABELS[role] || role;
-    populateLoginDropdown();
-  }
-
-  function populateLoginDropdown() {
-    const select = $('loginAccountSelect');
-    const filtered = allAccounts.filter(acc => acc.role === selectedLoginRole);
-    select.innerHTML = '';
-    if (filtered.length === 0) {
-      select.innerHTML = '<option value="">-- Tidak ada akun pada peran ini --</option>';
-      return;
-    }
-    filtered.forEach(acc => {
-      const opt = document.createElement('option');
-      opt.value = acc.id;
-      opt.textContent = `${acc.nama} (${acc.kelasInfo})`;
-      select.appendChild(opt);
-    });
+    clearLoginSelection();
   }
 
   async function handleLogin(e) {
     e.preventDefault();
-    const userId = useUsernameLogin ? $('loginUsernameInput').value.trim() : $('loginAccountSelect').value;
+    const userId = resolveLoginUserId();
     const password = $('loginPassword').value;
     if (!userId) {
-      showToast(useUsernameLogin ? 'Silakan masukkan ID / username terlebih dahulu.' : 'Silakan pilih akun terlebih dahulu.', 'warning');
+      showToast('Silakan pilih akun atau ketik username terlebih dahulu.', 'warning');
       return;
     }
 
@@ -281,7 +352,7 @@
     $('adminControlBar').style.display = 'none';
     $('mainAppSection').style.display = 'none';
     $('loginSection').style.display = 'flex';
-    resetLoginInputMode();
+    clearLoginSelection();
     loadLoginAccounts();
     showToast('Anda telah keluar dari sistem.');
   }
@@ -1455,6 +1526,46 @@
       }
     });
 
+    const comboInput = $('loginAccountInput');
+    const comboList = $('loginAccountListbox');
+    comboInput.addEventListener('focus', () => openLoginListbox(false));
+    comboInput.addEventListener('input', () => {
+      $('loginSelectedUserId').value = '';
+      openLoginListbox(false);
+    });
+    comboInput.addEventListener('keydown', e => {
+      const isOpen = comboList.style.display === 'block';
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!isOpen) openLoginListbox(false);
+        updateComboboxHighlight(comboboxActiveIndex + 1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!isOpen) openLoginListbox(false);
+        updateComboboxHighlight(comboboxActiveIndex - 1);
+      } else if (e.key === 'Enter' && isOpen && comboboxActiveIndex >= 0) {
+        e.preventDefault();
+        const activeOpt = comboList.querySelectorAll('.combobox-option[data-acc-id]')[comboboxActiveIndex];
+        if (activeOpt) selectComboboxAccount(activeOpt.dataset.accId);
+      } else if (e.key === 'Escape' && isOpen) {
+        e.preventDefault();
+        closeLoginListbox();
+      }
+    });
+    comboList.addEventListener('mousedown', e => {
+      const opt = e.target.closest('.combobox-option[data-acc-id]');
+      if (opt) {
+        e.preventDefault();
+        selectComboboxAccount(opt.dataset.accId);
+      }
+    });
+    document.addEventListener('click', e => {
+      const wrapper = $('loginComboboxWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        closeLoginListbox();
+      }
+    });
+
     await BackendAPI.init();
     updateConnectionBadge();
     loadLoginAccounts();
@@ -1464,7 +1575,7 @@
   Object.assign(globalScope, {
     selectLoginRole,
     handleLogin,
-    toggleLoginInputMode,
+    toggleLoginDropdown,
     setAdminView,
     renderAdminPreviewStudent,
     togglePw,
