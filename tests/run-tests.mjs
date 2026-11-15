@@ -1,0 +1,213 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import { webcrypto } from 'node:crypto';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+
+// Polyfill browser globals for LocalBackend & BackendAPI
+const store = new Map();
+globalThis.localStorage = {
+  getItem: k => (store.has(k) ? store.get(k) : null),
+  setItem: (k, v) => store.set(k, String(v)),
+  removeItem: k => store.delete(k)
+};
+if (!globalThis.crypto) globalThis.crypto = webcrypto;
+
+const LocalBackend = require(path.join(root, 'js/local-backend.js'));
+globalThis.LocalBackend = LocalBackend;
+const BackendAPI = require(path.join(root, 'js/api.js'));
+
+function runStaticHtmlAndContractChecks() {
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const appJs = fs.readFileSync(path.join(root, 'js/app.js'), 'utf8');
+  const sql = fs.readFileSync(path.join(root, 'supabase/schema.sql'), 'utf8');
+
+  // 1. Verify every $('id') in app.js exists in index.html
+  const usedIds = [...new Set([...appJs.matchAll(/\$\('([A-Za-z0-9_-]+)'\)/g)].map(m => m[1]))];
+  for (const id of usedIds) {
+    assert.ok(
+      html.includes(`id="${id}"`),
+      `HTML missing id="${id}" referenced in js/app.js`
+    );
+  }
+
+  // 2. Verify all JS files parse cleanly
+  for (const rel of ['js/local-backend.js', 'js/api.js', 'js/app.js']) {
+    const code = fs.readFileSync(path.join(root, rel), 'utf8');
+    new vm.Script(code, { filename: rel });
+  }
+
+  // 3. Verify all 14 Supabase RPC mappings match schema.sql parameter names & grants
+  const sqlRpcs = {};
+  for (const m of sql.matchAll(/CREATE OR REPLACE FUNCTION public\.(ebk_[a-z0-9_]+)\(([\s\S]*?)\)\s*RETURNS/g)) {
+    const fn = m[1];
+    const raw = m[2].trim();
+    const params = raw ? raw.split(',').map(p => p.trim().split(/\s+/)[0]) : [];
+    sqlRpcs[fn] = params;
+  }
+
+  const actions = [
+    ['ping', []],
+    ['getLoginAccounts', []],
+    ['loginUser', ['SW01', '123456']],
+    ['akhiriSesi', ['tok']],
+    ['ubahSandi', ['tok', 'old', 'newpass']],
+    ['jalankanSetup', ['tok']],
+    ['getAllAppData', ['tok']],
+    ['tambahCatatanPoin', ['tok', { idSiswa: 'SW01', jenis: 'Prestasi', poin: 10, keterangan: 'ok' }]],
+    ['updateTindakanSiswa', ['tok', 'SW01', 'Tidak', false]],
+    ['ajukanKonseling', ['tok', { topik: 'Pribadi & Sosial', cerita: 'halo' }]],
+    ['setujuiKonseling', ['tok', 'KS-2001', 'Besok', 'OK']],
+    ['tolakKonseling', ['tok', 'KS-2001', 'Maaf']],
+    ['saveUserAccount', ['tok', { mode: 'add', id: '', role: 'Murid', nama: 'A', kelasInfo: 'B', password: '123456', terkaitIdSiswa: '' }]],
+    ['deleteUserAccount', ['tok', 'SW07']]
+  ];
+
+  for (const [action, args] of actions) {
+    const [rpcName, params] = BackendAPI.mapActionToSupabase(action, args);
+    assert.ok(sqlRpcs[rpcName], `Missing SQL RPC ${rpcName}`);
+    assert.deepEqual(Object.keys(params).sort(), [...sqlRpcs[rpcName]].sort(), `Param mismatch on ${rpcName}`);
+    assert.ok(sql.includes(`GRANT EXECUTE ON FUNCTION public.${rpcName}(`), `Missing GRANT for ${rpcName}`);
+  }
+
+  // 4. Verify Supabase headers handle sb_publishable_ vs JWT anon keys
+  const pubHeaders = BackendAPI.buildSupabaseHeaders('sb_publishable_testkey');
+  assert.equal(pubHeaders.apikey, 'sb_publishable_testkey');
+  assert.equal(pubHeaders.Authorization, undefined);
+
+  const jwtHeaders = BackendAPI.buildSupabaseHeaders('eyJhbGciOiJIUzI1NiJ9.payload.sig');
+  assert.equal(jwtHeaders.apikey, 'eyJhbGciOiJIUzI1NiJ9.payload.sig');
+  assert.equal(jwtHeaders.Authorization, 'Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig');
+
+  // 5. Verify accessible labels exist for static inputs/selects/textareas
+  for (const m of html.matchAll(/<(input|select|textarea)\b([^>]*)>/g)) {
+    const attrs = m[2];
+    if (/type="hidden"/.test(attrs)) continue;
+    const idMatch = attrs.match(/id="([^"]+)"/);
+    assert.ok(idMatch, `Form control missing id: ${m[0]}`);
+    const id = idMatch[1];
+    assert.ok(
+      html.includes(`for="${id}"`) || /aria-label=/.test(attrs),
+      `Form control #${id} missing <label for="${id}"> or aria-label`
+    );
+  }
+}
+
+async function runBackendBehaviorTests() {
+  store.clear();
+
+  // 1. hitungStatusSP boundaries
+  assert.equal(LocalBackend.hitungStatusSP(100), 'Aman');
+  assert.equal(LocalBackend.hitungStatusSP(85), 'Aman');
+  assert.equal(LocalBackend.hitungStatusSP(84), 'SP 1');
+  assert.equal(LocalBackend.hitungStatusSP(70), 'SP 1');
+  assert.equal(LocalBackend.hitungStatusSP(69), 'SP 2');
+  assert.equal(LocalBackend.hitungStatusSP(50), 'SP 2');
+  assert.equal(LocalBackend.hitungStatusSP(49), 'SP 3');
+  assert.equal(LocalBackend.hitungStatusSP(0), 'SP 3');
+
+  // 2. Login accounts leak no passwords
+  const accs = await LocalBackend.dispatch('getLoginAccounts', []);
+  assert.equal(accs.success, true);
+  assert.equal(accs.data.length, 13);
+  assert.ok(accs.data.every(a => !('password' in a)));
+
+  // 3. Rate limiting (5 fails lock out 6th valid attempt)
+  for (let i = 0; i < 5; i++) {
+    const fail = await LocalBackend.dispatch('loginUser', ['SW02', 'salah']);
+    assert.equal(fail.success, false);
+  }
+  const blocked = await LocalBackend.dispatch('loginUser', ['SW02', '123456']);
+  assert.equal(blocked.success, false);
+  assert.match(blocked.message, /Terlalu banyak percobaan/);
+
+  // 4. Guru BK login + CRUD + sequential ID + protections
+  const bk = await LocalBackend.dispatch('loginUser', ['BK01', '123456']);
+  assert.equal(bk.success, true);
+
+  const addRes = await LocalBackend.dispatch('saveUserAccount', [
+    bk.token,
+    { mode: 'add', role: 'Murid', nama: 'Siswa Uji', kelasInfo: 'XI RPL 10', password: 'password123' }
+  ]);
+  assert.equal(addRes.success, true);
+
+  const bkData = await LocalBackend.dispatch('getAllAppData', [bk.token]);
+  assert.ok(bkData.users.some(u => u.id === 'SW07' && u.kelasInfo === 'XI RPL 10'));
+
+  const delSelf = await LocalBackend.dispatch('deleteUserAccount', [bk.token, 'BK01']);
+  assert.equal(delSelf.success, false);
+
+  const delLinked = await LocalBackend.dispatch('deleteUserAccount', [bk.token, 'SW01']);
+  assert.equal(delLinked.success, false);
+
+  // 5. Points clamping & real delta + Pemulihan
+  const clampUp = await LocalBackend.dispatch('tambahCatatanPoin', [
+    bk.token,
+    { idSiswa: 'SW01', jenis: 'Prestasi', poin: 15, keterangan: 'Juara lagi' }
+  ]);
+  assert.equal(clampUp.success, true);
+  let afterUp = await LocalBackend.dispatch('getAllAppData', [bk.token]);
+  assert.equal(afterUp.catatan[0].perubahanPoin, 0);
+
+  const dropToZero = await LocalBackend.dispatch('tambahCatatanPoin', [
+    bk.token,
+    { idSiswa: 'SW06', jenis: 'Pelanggaran', poin: 60, keterangan: 'Pelanggaran berat' }
+  ]);
+  assert.equal(dropToZero.success, true);
+  let afterDrop = await LocalBackend.dispatch('getAllAppData', [bk.token]);
+  assert.equal(afterDrop.catatan[0].perubahanPoin, -35);
+  assert.equal(afterDrop.students.find(s => s.id === 'SW06').poin, 0);
+
+  const restore = await LocalBackend.dispatch('updateTindakanSiswa', [bk.token, 'SW06', 'Tidak', true]);
+  assert.equal(restore.success, true);
+  let afterRestore = await LocalBackend.dispatch('getAllAppData', [bk.token]);
+  const sw06 = afterRestore.students.find(s => s.id === 'SW06');
+  assert.equal(sw06.poin, 100);
+  assert.equal(sw06.statusSP, 'Aman');
+  assert.equal(afterRestore.catatan[0].jenis, 'Pemulihan');
+  assert.equal(afterRestore.catatan[0].perubahanPoin, 100);
+
+  // 6. Counseling workflow: max 3 pending + approve/reject + no double-process
+  const sw01 = await LocalBackend.dispatch('loginUser', ['SW01', '123456']);
+  assert.equal(sw01.success, true);
+  assert.equal((await LocalBackend.dispatch('ajukanKonseling', [sw01.token, { topik: 'Akademik & Belajar', cerita: 'Cerita 2' }])).success, true);
+  assert.equal((await LocalBackend.dispatch('ajukanKonseling', [sw01.token, { topik: 'Akademik & Belajar', cerita: 'Cerita 3' }])).success, true);
+  const fourth = await LocalBackend.dispatch('ajukanKonseling', [sw01.token, { topik: 'Akademik & Belajar', cerita: 'Cerita 4' }]);
+  assert.equal(fourth.success, false);
+
+  const approve = await LocalBackend.dispatch('setujuiKonseling', [bk.token, 'KS-2001', 'Senin 09:00', 'Datang tepat waktu']);
+  assert.equal(approve.success, true);
+  const doubleProcess = await LocalBackend.dispatch('tolakKonseling', [bk.token, 'KS-2001', 'Batal']);
+  assert.equal(doubleProcess.success, false);
+
+  // 7. Role isolation: Ortu & Guru
+  const ot01 = await LocalBackend.dispatch('loginUser', ['OT01', '123456']);
+  const otData = await LocalBackend.dispatch('getAllAppData', [ot01.token]);
+  assert.equal(otData.users.length, 0);
+  assert.equal(otData.students.length, 1);
+  assert.ok(otData.konseling.every(k => k.cerita === '(Isi cerita bersifat rahasia)'));
+  assert.equal((await LocalBackend.dispatch('deleteUserAccount', [ot01.token, 'SW07'])).success, false);
+
+  const gr01 = await LocalBackend.dispatch('loginUser', ['GR01', '123456']);
+  const grData = await LocalBackend.dispatch('getAllAppData', [gr01.token]);
+  assert.equal(grData.konseling.length, 0);
+  assert.equal(grData.users.length, 0);
+  assert.ok(grData.catatan.every(c => c.pelapor === 'Samsudin, M.Pd'));
+
+  // 8. Password change & logout invalidates token
+  const chPw = await LocalBackend.dispatch('ubahSandi', [sw01.token, '123456', 'sandibaru99']);
+  assert.equal(chPw.success, true);
+  assert.equal((await LocalBackend.dispatch('loginUser', ['SW01', 'sandibaru99'])).success, true);
+  await LocalBackend.dispatch('akhiriSesi', [sw01.token]);
+  const expiredData = await LocalBackend.dispatch('getAllAppData', [sw01.token]);
+  assert.equal(expiredData.success, false);
+  assert.equal(expiredData.expired, true);
+}
+
+runStaticHtmlAndContractChecks();
+await runBackendBehaviorTests();
+console.log('ALL STATIC, ACCESSIBILITY, SUPABASE CONTRACT & BACKEND TESTS PASSED');
