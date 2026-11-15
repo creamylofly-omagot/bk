@@ -753,9 +753,8 @@
                   Jalankan Verifikasi Database
                 </button>
                 <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-semibold" id="btnSettingsConnModal" onclick="openConnectionModal()">
-                  <i class="bi bi-plug me-1"></i> Pengaturan Koneksi Google Sheets
+                  <i class="bi bi-plug me-1"></i> Pengaturan Koneksi Database
                 </button>
-              </div>
             </div>
           </div>
 
@@ -923,7 +922,7 @@
     </div>
   </div>
 
-  <!-- MODAL 5: KONEKSI DATABASE (GOOGLE SHEETS / LOKAL) -->
+  <!-- MODAL 5: KONEKSI DATABASE (SUPABASE / GOOGLE SHEETS / LOKAL) -->
   <div class="modal fade" id="modalKoneksi" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content rounded-4 border-0 shadow-lg">
@@ -933,14 +932,37 @@
         </div>
         <div class="modal-body">
           <p class="small text-muted mb-3">
-            Website ini berjalan otomatis dalam <strong>Mode Lokal Browser</strong> bila URL Google Apps Script belum diisi.
-            Untuk menyimpan data ke <strong>Google Sheets</strong> secara terpusat, tempel URL Web App Apps Script (<code>/exec</code>) di bawah ini.
+            Pilih penyimpanan database untuk website ini. Secara default website berjalan di <strong>Mode Lokal Browser</strong> hingga Anda menghubungkan Supabase atau Google Apps Script.
           </p>
+
           <div class="mb-3">
-            <label for="inputGasApiUrl" class="form-label small fw-semibold">URL Web App Google Apps Script</label>
-            <input type="url" class="form-control" id="inputGasApiUrl" placeholder="https://script.google.com/macros/s/.../exec">
-            <div class="form-text small">Kosongkan untuk kembali ke Mode Lokal Browser.</div>
+            <label class="form-label small fw-semibold">Mode Penyimpanan</label>
+            <select class="form-select" id="selectConnMode" onchange="toggleConnFields()">
+              <option value="supabase">Supabase (PostgreSQL Cloud - Disarankan)</option>
+              <option value="gas">Google Apps Script (Google Sheets)</option>
+              <option value="local">Mode Lokal Browser (Standalone)</option>
+            </select>
           </div>
+
+          <div id="connFieldsSupabase">
+            <div class="mb-3">
+              <label for="inputSupabaseUrl" class="form-label small fw-semibold">Supabase Project URL</label>
+              <input type="url" class="form-control" id="inputSupabaseUrl" placeholder="https://xxxxxxxxxxxx.supabase.co">
+            </div>
+            <div class="mb-3">
+              <label for="inputSupabaseAnonKey" class="form-label small fw-semibold">Supabase Anon / Publishable Key</label>
+              <input type="text" class="form-control" id="inputSupabaseAnonKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+              <div class="form-text small">Pastikan file <code>supabase/schema.sql</code> sudah dijalankan di SQL Editor Supabase.</div>
+            </div>
+          </div>
+
+          <div id="connFieldsGas" style="display: none;">
+            <div class="mb-3">
+              <label for="inputGasApiUrl" class="form-label small fw-semibold">URL Web App Google Apps Script</label>
+              <input type="url" class="form-control" id="inputGasApiUrl" placeholder="https://script.google.com/macros/s/.../exec">
+            </div>
+          </div>
+
           <div class="d-flex flex-wrap gap-2">
             <button type="button" class="btn btn-primary flex-grow-1 fw-semibold" onclick="saveConnectionConfig()">
               <i class="bi bi-check2-circle me-1"></i> Simpan & Uji Koneksi
@@ -970,13 +992,15 @@
     let sessionToken = null;
     let loadingTimer = null;
     let configuredGasUrl = '';
+    let configuredSupabaseUrl = '';
+    let configuredSupabaseKey = '';
 
     const ROLES = ['Murid', 'Guru', 'Ortu', 'Guru_BK'];
     const TOPIK = ['Pribadi & Sosial', 'Akademik & Belajar', 'Karir, PKL & Kuliah', 'Masalah Kedisiplinan'];
     const SESSION_TTL_MS = 21600 * 1000; // 6 jam
 
     // =========================================================================
-    // ADAPTER BACKEND: GAS NATIVE -> GAS WEB APP URL -> LOKAL BROWSER
+    // ADAPTER BACKEND: GAS NATIVE -> SUPABASE RPC -> GAS WEB APP -> LOKAL
     // =========================================================================
     function isNativeGas() {
       return typeof window.google !== 'undefined' && window.google.script && window.google.script.run;
@@ -984,6 +1008,7 @@
 
     function getActiveBackendMode() {
       if (isNativeGas()) return 'gas-native';
+      if (configuredSupabaseUrl && configuredSupabaseKey) return 'supabase';
       if (configuredGasUrl) return 'gas-remote';
       return 'local';
     }
@@ -997,6 +1022,10 @@
         badge.innerHTML = '<i class="bi bi-cloud-check-fill me-1 text-success"></i> Google Apps Script';
         if (btnConn) btnConn.style.display = 'none';
         if (btnSetConn) btnSetConn.style.display = 'none';
+      } else if (mode === 'supabase') {
+        badge.innerHTML = '<i class="bi bi-database-fill-check me-1 text-success"></i> Terhubung Supabase';
+        if (btnConn) btnConn.style.display = '';
+        if (btnSetConn) btnSetConn.style.display = '';
       } else if (mode === 'gas-remote') {
         badge.innerHTML = '<i class="bi bi-cloud-check-fill me-1 text-success"></i> Terhubung Google Sheets';
         if (btnConn) btnConn.style.display = '';
@@ -1005,6 +1034,57 @@
         badge.innerHTML = '<i class="bi bi-hdd-stack me-1 text-primary"></i> Mode Lokal Browser';
         if (btnConn) btnConn.style.display = '';
         if (btnSetConn) btnSetConn.style.display = '';
+      }
+    }
+
+    async function callSupabaseRpc(url, key, fnName, params) {
+      const base = url.replace(/\/+$/, '');
+      const res = await fetch(`${base}/rest/v1/rpc/${fnName}`, {
+        method: 'POST',
+        headers: {
+          'apikey': key,
+          'Authorization': 'Bearer ' + key,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(params || {})
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = (data && (data.message || data.hint || data.details)) || ('HTTP ' + res.status + ' dari Supabase.');
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function mapActionToSupabase(action, args) {
+      switch (action) {
+        case 'ping': return ['ebk_ping', {}];
+        case 'getLoginAccounts': return ['ebk_get_login_accounts', {}];
+        case 'loginUser': return ['ebk_login_user', { p_user_id: args[0], p_password: args[1] }];
+        case 'akhiriSesi': return ['ebk_akhiri_sesi', { p_token: args[0] || '' }];
+        case 'ubahSandi': return ['ebk_ubah_sandi', { p_token: args[0], p_lama: args[1], p_baru: args[2] }];
+        case 'jalankanSetup': return ['ebk_jalankan_setup', { p_token: args[0] }];
+        case 'getAllAppData': return ['ebk_get_all_app_data', { p_token: args[0] }];
+        case 'tambahCatatanPoin': {
+          const p = args[1] || {};
+          return ['ebk_tambah_catatan_poin', { p_token: args[0], p_id_siswa: p.idSiswa, p_jenis: p.jenis, p_poin: Number(p.poin), p_keterangan: p.keterangan }];
+        }
+        case 'updateTindakanSiswa': return ['ebk_update_tindakan_siswa', { p_token: args[0], p_id_siswa: args[1], p_skorsing: args[2], p_reset_poin: !!args[3] }];
+        case 'ajukanKonseling': {
+          const p = args[1] || {};
+          return ['ebk_ajukan_konseling', { p_token: args[0], p_topik: p.topik, p_cerita: p.cerita }];
+        }
+        case 'setujuiKonseling': return ['ebk_setujui_konseling', { p_token: args[0], p_id: args[1], p_jadwal: args[2], p_catatan_bk: args[3] || '' }];
+        case 'tolakKonseling': return ['ebk_tolak_konseling', { p_token: args[0], p_id: args[1], p_alasan: args[2] || '' }];
+        case 'saveUserAccount': {
+          const p = args[1] || {};
+          return ['ebk_save_user_account', {
+            p_token: args[0], p_mode: p.mode, p_id: p.id || '', p_role: p.role,
+            p_nama: p.nama, p_kelas_info: p.kelasInfo, p_password: p.password || '', p_terkait_id_siswa: p.terkaitIdSiswa || ''
+          }];
+        }
+        case 'deleteUserAccount': return ['ebk_delete_user_account', { p_token: args[0], p_user_id: args[1] }];
+        default: throw new Error('Aksi tidak dikenal: ' + action);
       }
     }
 
@@ -1017,6 +1097,10 @@
             .withFailureHandler(err => reject(new Error(err && err.message ? err.message : String(err))));
           runner[action](...args);
         });
+      }
+      if (mode === 'supabase') {
+        const [rpcName, params] = mapActionToSupabase(action, args);
+        return await callSupabaseRpc(configuredSupabaseUrl, configuredSupabaseKey, rpcName, params);
       }
       if (mode === 'gas-remote') {
         const res = await fetch(configuredGasUrl, {
@@ -1561,19 +1645,28 @@
     // =========================================================================
     async function initApp() {
       if (!isNativeGas()) {
-        const urlParam = new URLSearchParams(window.location.search).get('api');
-        if (urlParam) {
-          configuredGasUrl = urlParam.trim();
+        const params = new URLSearchParams(window.location.search);
+        const apiParam = params.get('api');
+        if (apiParam) {
+          configuredGasUrl = apiParam.trim();
           localStorage.setItem('ebk_gas_api_url', configuredGasUrl);
         } else {
           configuredGasUrl = (localStorage.getItem('ebk_gas_api_url') || '').trim();
         }
-        if (!configuredGasUrl) {
+        configuredSupabaseUrl = (localStorage.getItem('ebk_supabase_url') || '').trim();
+        configuredSupabaseKey = (localStorage.getItem('ebk_supabase_key') || '').trim();
+
+        if (!(configuredSupabaseUrl && configuredSupabaseKey) && !configuredGasUrl) {
           try {
             const cfgRes = await fetch('./config.json', { cache: 'no-store' });
             if (cfgRes.ok) {
               const cfg = await cfgRes.json();
-              if (cfg && cfg.gasApiUrl) configuredGasUrl = String(cfg.gasApiUrl).trim();
+              if (cfg && cfg.supabaseUrl && cfg.supabaseAnonKey) {
+                configuredSupabaseUrl = String(cfg.supabaseUrl).trim();
+                configuredSupabaseKey = String(cfg.supabaseAnonKey).trim();
+              } else if (cfg && cfg.gasApiUrl) {
+                configuredGasUrl = String(cfg.gasApiUrl).trim();
+              }
             }
           } catch (e) {}
         }
@@ -1584,15 +1677,31 @@
 
     window.onload = initApp;
 
+    function toggleConnFields() {
+      const val = document.getElementById('selectConnMode').value;
+      document.getElementById('connFieldsSupabase').style.display = val === 'supabase' ? 'block' : 'none';
+      document.getElementById('connFieldsGas').style.display = val === 'gas' ? 'block' : 'none';
+    }
+
     function openConnectionModal() {
+      const mode = getActiveBackendMode();
+      document.getElementById('selectConnMode').value = mode === 'gas-remote' ? 'gas' : 'supabase';
+      document.getElementById('inputSupabaseUrl').value = configuredSupabaseUrl;
+      document.getElementById('inputSupabaseAnonKey').value = configuredSupabaseKey;
       document.getElementById('inputGasApiUrl').value = configuredGasUrl;
+      toggleConnFields();
       bootstrap.Modal.getOrCreateInstance(document.getElementById('modalKoneksi')).show();
     }
 
     async function saveConnectionConfig() {
-      const url = document.getElementById('inputGasApiUrl').value.trim();
-      if (!url) {
+      const sel = document.getElementById('selectConnMode').value;
+
+      if (sel === 'local') {
+        configuredSupabaseUrl = '';
+        configuredSupabaseKey = '';
         configuredGasUrl = '';
+        localStorage.removeItem('ebk_supabase_url');
+        localStorage.removeItem('ebk_supabase_key');
         localStorage.removeItem('ebk_gas_api_url');
         updateConnectionBadge();
         bootstrap.Modal.getInstance(document.getElementById('modalKoneksi')).hide();
@@ -1602,6 +1711,37 @@
         return;
       }
 
+      if (sel === 'supabase') {
+        const sbUrl = document.getElementById('inputSupabaseUrl').value.trim().replace(/\/+$/, '');
+        const sbKey = document.getElementById('inputSupabaseAnonKey').value.trim();
+        if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(sbUrl) || !sbKey) {
+          showToast('Isi Project URL (https://....supabase.co) dan Anon Key dengan benar.', 'warning');
+          return;
+        }
+        showLoading('Menguji koneksi ke Supabase...');
+        try {
+          const data = await callSupabaseRpc(sbUrl, sbKey, 'ebk_ping', {});
+          hideLoading();
+          if (!data || !data.success) throw new Error((data && data.message) || 'Respon Supabase tidak valid.');
+          configuredSupabaseUrl = sbUrl;
+          configuredSupabaseKey = sbKey;
+          configuredGasUrl = '';
+          localStorage.setItem('ebk_supabase_url', sbUrl);
+          localStorage.setItem('ebk_supabase_key', sbKey);
+          localStorage.removeItem('ebk_gas_api_url');
+          updateConnectionBadge();
+          bootstrap.Modal.getInstance(document.getElementById('modalKoneksi')).hide();
+          showToast(data.message || 'Berhasil terhubung ke Supabase!');
+          if (sessionToken) forceLogout();
+          else loadLoginAccounts();
+        } catch (err) {
+          hideLoading();
+          showToast('Gagal terhubung ke Supabase: ' + err.message, 'error');
+        }
+        return;
+      }
+
+      const url = document.getElementById('inputGasApiUrl').value.trim();
       if (!/^https:\/\/script\.google\.com\//i.test(url)) {
         showToast('URL harus berasal dari https://script.google.com/.../exec', 'warning');
         return;
@@ -1619,7 +1759,11 @@
         if (!data || !data.success) throw new Error((data && data.message) || 'Respon server tidak valid.');
 
         configuredGasUrl = url;
+        configuredSupabaseUrl = '';
+        configuredSupabaseKey = '';
         localStorage.setItem('ebk_gas_api_url', url);
+        localStorage.removeItem('ebk_supabase_url');
+        localStorage.removeItem('ebk_supabase_key');
         updateConnectionBadge();
         bootstrap.Modal.getInstance(document.getElementById('modalKoneksi')).hide();
         showToast(data.message || 'Berhasil terhubung ke Google Sheets!');
