@@ -301,9 +301,11 @@
           const row = (db.config || []).find(x => x.Key === k);
           return row ? row.Value : '';
         };
-        const schoolConfig = me.role === 'Admin'
-          ? { namaSekolah: getCfg('Nama_Sekolah') || 'SMKN 1 Kota Binjai', alamat: getCfg('Alamat'), tahunAjaran: getCfg('Tahun_Ajaran') }
-          : {};
+        const schoolConfig = {
+          namaSekolah: getCfg('Nama_Sekolah') || 'SMKN 1 Kota Binjai',
+          alamat: getCfg('Alamat'),
+          tahunAjaran: getCfg('Tahun_Ajaran')
+        };
 
         return {
           success: true,
@@ -691,6 +693,62 @@
         ];
         saveDb(db);
         return { success: true, message: 'Pengaturan sekolah berhasil disimpan.' };
+      }
+
+      if (action === 'importUsersCsv') {
+        requireSession(db, args[0], ['Admin']);
+        const rows = args[1];
+        if (!Array.isArray(rows)) throw new Error('Format data CSV tidak valid.');
+        if (rows.length === 0) throw new Error('Tidak ada baris akun untuk diimpor.');
+        if (rows.length > 500) throw new Error('Maksimal 500 akun per sekali impor.');
+        const allowedRoles = ['Murid', 'Guru', 'Ortu', 'Guru_BK'];
+        const defaultPw = await hashPw(db.salt, '123456');
+        let added = 0;
+        let skipped = 0;
+        for (const row of rows) {
+          const role = String((row && row.role) || '').trim();
+          const nama = String((row && row.nama) || '').trim().slice(0, 100);
+          const kelasInfo = String((row && row.kelasInfo) || '').trim().slice(0, 100);
+          const pw = String((row && row.password) || '');
+          let terkait = String((row && row.terkaitIdSiswa) || '').trim();
+          if (allowedRoles.indexOf(role) < 0 || !nama || !kelasInfo) {
+            skipped++;
+            continue;
+          }
+          if (pw !== '' && pw.length < 6) {
+            skipped++;
+            continue;
+          }
+          if (role === 'Ortu') {
+            if (!db.users.some(u => u.id === terkait && u.role === 'Murid')) {
+              skipped++;
+              continue;
+            }
+          } else {
+            terkait = '';
+          }
+          const prefix = { Murid: 'SW', Guru: 'GR', Ortu: 'OT', Guru_BK: 'BK' }[role];
+          const newId = nextId(db.users, prefix, 1, 2);
+          db.users.push({
+            id: newId,
+            role,
+            nama,
+            password: pw === '' ? defaultPw : await hashPw(db.salt, pw),
+            kelasInfo,
+            poin: 100,
+            statusSP: role === 'Murid' ? 'Aman' : '-',
+            skorsing: 'Tidak',
+            terkaitIdSiswa: terkait
+          });
+          added++;
+        }
+        saveDb(db);
+        return {
+          success: true,
+          added,
+          skipped,
+          message: `${added} akun berhasil diimpor${skipped > 0 ? ` (${skipped} baris dilewati).` : '.'}`
+        };
       }
 
       throw new Error('Aksi tidak dikenal.');

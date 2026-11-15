@@ -54,6 +54,8 @@ function doPost(e) {
       deleteLaporanGuru: () => deleteLaporanGuru(args[0], args[1]),
       adminTambahKonseling: () => adminTambahKonseling(args[0], args[1]),
       saveSchoolConfig: () => saveSchoolConfig(args[0], args[1])
+      ,
+      importUsersCsv: () => importUsersCsv(args[0], args[1])
     };
 
     if (!Object.prototype.hasOwnProperty.call(handlers, action)) {
@@ -315,13 +317,10 @@ function getAllAppData(token) {
       konseling = konseling.filter(k => k.idSiswa === sid);
       if (me.role === 'Ortu') konseling = konseling.map(k => Object.assign({}, k, { cerita: '(Isi cerita bersifat rahasia)' }));
     }
-    let schoolConfig = {};
-    if (me.role === 'Admin') {
-      const cfgVals = ss_().getSheetByName(SHEET.CONFIG).getDataRange().getValues().slice(1);
-      const map = {};
-      cfgVals.forEach(r => { map[String(r[0])] = String(r[1] || ''); });
-      schoolConfig = { namaSekolah: map.Nama_Sekolah || 'SMKN 1 Kota Binjai', alamat: map.Alamat || '', tahunAjaran: map.Tahun_Ajaran || '' };
-    }
+    const cfgVals = ss_().getSheetByName(SHEET.CONFIG).getDataRange().getValues().slice(1);
+    const cfgMap = {};
+    cfgVals.forEach(r => { cfgMap[String(r[0])] = String(r[1] || ''); });
+    const schoolConfig = { namaSekolah: cfgMap.Nama_Sekolah || 'SMKN 1 Kota Binjai', alamat: cfgMap.Alamat || '', tahunAjaran: cfgMap.Tahun_Ajaran || '' };
     return { success: true, me: pub_(me), users: users, students: students.map(pub_), catatan: catatan.reverse(), konseling: konseling.reverse(), laporan: laporan.reverse(), schoolConfig: schoolConfig };
   });
 }
@@ -643,6 +642,38 @@ function saveSchoolConfig(token, p) {
       cfg.appendRow(['Tahun_Ajaran', String(p.tahunAjaran || '').trim().slice(0, 30)]);
       header_(cfg, 2);
       return { success: true, message: 'Pengaturan sekolah berhasil disimpan.' };
+    });
+  });
+}
+function importUsersCsv(token, rows) {
+  return guard_(() => {
+    requireSession_(token, ['Admin']);
+    return withLock_(() => {
+      if (!Array.isArray(rows)) throw new Error('Format data CSV tidak valid.');
+      if (rows.length === 0) throw new Error('Tidak ada baris akun untuk diimpor.');
+      if (rows.length > 500) throw new Error('Maksimal 500 akun per sekali impor.');
+      const allowed = ['Murid', 'Guru', 'Ortu', 'Guru_BK'];
+      const sh = ss_().getSheetByName(SHEET.USERS);
+      const existingStudents = users_().filter(u => u.role === 'Murid').map(u => u.id);
+      const defaultPw = hash_('123456');
+      let added = 0, skipped = 0;
+      rows.forEach(row => {
+        const role = String((row && row.role) || '').trim();
+        const nama = String((row && row.nama) || '').trim().slice(0, 100);
+        const kelasInfo = String((row && row.kelasInfo) || '').trim().slice(0, 100);
+        const pw = String((row && row.password) || '');
+        let terkait = String((row && row.terkaitIdSiswa) || '').trim();
+        if (allowed.indexOf(role) < 0 || !nama || !kelasInfo || (pw !== '' && pw.length < 6)) { skipped++; return; }
+        if (role === 'Ortu') {
+          if (existingStudents.indexOf(terkait) < 0) { skipped++; return; }
+        } else { terkait = ''; }
+        const prefix = { Murid: 'SW', Guru: 'GR', Ortu: 'OT', Guru_BK: 'BK' }[role];
+        const newId = nextId_(sh, prefix, 1, 2);
+        sh.appendRow([newId, role, nama, pw === '' ? defaultPw : hash_(pw), kelasInfo, 100, role === 'Murid' ? 'Aman' : '-', 'Tidak', terkait]);
+        if (role === 'Murid') existingStudents.push(newId);
+        added++;
+      });
+      return { success: true, added: added, skipped: skipped, message: added + ' akun berhasil diimpor' + (skipped > 0 ? ' (' + skipped + ' baris dilewati).' : '.') };
     });
   });
 }

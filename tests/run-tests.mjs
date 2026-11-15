@@ -73,7 +73,8 @@ function runStaticHtmlAndContractChecks() {
     ['deleteKonseling', ['tok', 'KS-2001']],
     ['deleteLaporanGuru', ['tok', 'LP-3001']],
     ['adminTambahKonseling', ['tok', { idSiswa: 'SW01', topik: 'Pribadi & Sosial', cerita: 'c', jadwal: 'j', catatanBK: 'k' }]],
-    ['saveSchoolConfig', ['tok', { namaSekolah: 'SMK', alamat: 'Jl', tahunAjaran: '2026/2027' }]]
+    ['saveSchoolConfig', ['tok', { namaSekolah: 'SMK', alamat: 'Jl', tahunAjaran: '2026/2027' }]],
+    ['importUsersCsv', ['tok', [{ role: 'Murid', nama: 'A', kelasInfo: 'B', password: '', terkaitIdSiswa: '' }]]]
   ];
 
   for (const [action, args] of actions) {
@@ -314,6 +315,30 @@ async function runBackendBehaviorTests() {
     (await LocalBackend.dispatch('saveSchoolConfig', [adm.token, { namaSekolah: 'SMKN 1 Binjai', alamat: 'Jl. Samanhudi', tahunAjaran: '2027/2028' }])).success,
     true
   );
+
+  // Bulk CSV import: Guru BK denied, Admin imports valid rows and skips invalid rows
+  assert.equal((await LocalBackend.dispatch('importUsersCsv', [bk.token, [{ role: 'Murid', nama: 'A', kelasInfo: 'XI' }]])).success, false);
+  const csvRes = await LocalBackend.dispatch('importUsersCsv', [
+    adm.token,
+    [
+      { role: 'Murid', nama: 'Impor Satu', kelasInfo: 'X RPL 1', password: '', terkaitIdSiswa: '' },
+      { role: 'Guru', nama: 'Guru Impor', kelasInfo: 'Wali Kelas X RPL 1', password: 'pwbaruxyz', terkaitIdSiswa: '' },
+      { role: 'Murid', nama: 'Pendek Sandi', kelasInfo: 'X RPL 1', password: '123', terkaitIdSiswa: '' },
+      { role: 'Ortu', nama: 'Ortu Invalid', kelasInfo: 'Ortu', password: '123456', terkaitIdSiswa: 'SW999' }
+    ]
+  ]);
+  assert.equal(csvRes.success, true);
+  assert.equal(csvRes.added, 2);
+  assert.equal(csvRes.skipped, 2);
+  const afterCsv = await LocalBackend.dispatch('getAllAppData', [adm.token]);
+  assert.ok(afterCsv.users.some(u => u.id === 'SW08' && u.nama === 'Impor Satu'));
+  assert.ok(afterCsv.users.some(u => u.id === 'GR04' && u.nama === 'Guru Impor'));
+  assert.equal((await LocalBackend.dispatch('loginUser', ['SW08', '123456'])).success, true);
+  assert.equal((await LocalBackend.dispatch('loginUser', ['GR04', 'pwbaruxyz'])).success, true);
+
+  // School config is visible to Guru BK for print headers
+  const bkCfg = await LocalBackend.dispatch('getAllAppData', [bk.token]);
+  assert.equal(bkCfg.schoolConfig.tahunAjaran, '2027/2028');
 
   // Admin can add & delete Guru, Ortu, Murid (auto-unlinking Ortu), and even last Guru_BK
   assert.equal((await LocalBackend.dispatch('saveUserAccount', [adm.token, { mode: 'add', role: 'Admin', nama: 'Admin 2', kelasInfo: 'Cabang', password: 'password123' }])).success, true);

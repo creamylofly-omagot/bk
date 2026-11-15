@@ -12,7 +12,7 @@
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="css/styles.css?v=20261115b">
+  <link rel="stylesheet" href="css/styles.css?v=20261115c">
 </head>
 <body>
   <a href="#mainContent" class="skip-link">Lewati ke konten utama</a>
@@ -708,6 +708,40 @@
                 </table>
               </div>
             </div>
+
+            <div class="content-card p-3 p-md-4 mt-4">
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <div>
+                  <h2 class="h5 fw-bold mb-0"><i class="bi bi-file-earmark-spreadsheet-fill text-success me-2" aria-hidden="true"></i>Import Massal Akun (CSV)</h2>
+                  <small class="text-muted">Format: <code>Nama,Kelas</code> (pakai peran bawaan) atau <code>Role,Nama,Kelas_Info,Password,Terkait_ID_Siswa</code>. Sandi kosong otomatis <code>123456</code>.</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-semibold" onclick="downloadCsvTemplate()">
+                  <i class="bi bi-download me-1" aria-hidden="true"></i> Unduh Template
+                </button>
+              </div>
+              <div class="row g-2 mb-2">
+                <div class="col-12 col-sm-5">
+                  <label for="csvImportRoleDefault" class="form-label small fw-semibold">Peran Bawaan (bila 2 kolom)</label>
+                  <select class="form-select form-select-sm" id="csvImportRoleDefault">
+                    <option value="Murid">Murid</option>
+                    <option value="Guru">Guru / Wali Kelas</option>
+                    <option value="Guru_BK">Guru BK</option>
+                  </select>
+                </div>
+                <div class="col-12 col-sm-7">
+                  <label for="csvImportFile" class="form-label small fw-semibold">Pilih File CSV (opsional)</label>
+                  <input type="file" class="form-control form-control-sm" id="csvImportFile" accept=".csv,.txt" onchange="loadCsvFileToTextarea(event)">
+                </div>
+              </div>
+              <div class="mb-3">
+                <label for="csvImportText" class="form-label small fw-semibold">Isi Data CSV (maks. 500 baris per impor)</label>
+                <textarea class="form-control form-control-sm font-monospace" id="csvImportText" rows="4"
+                          placeholder="Contoh:&#10;Aminah,XI RPL 1&#10;Budi Santoso,XI TKJ 1"></textarea>
+              </div>
+              <button type="button" class="btn btn-success fw-semibold" onclick="handleImportUsersCsv()">
+                <i class="bi bi-upload me-1" aria-hidden="true"></i> Impor Akun Sekarang
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -796,6 +830,25 @@
           </div>
         </div>
 
+        <div class="content-card p-3 mb-4">
+          <div class="row g-2 align-items-center">
+            <div class="col-12 col-md-8">
+              <label for="adminSearchData" class="form-label small fw-semibold mb-1">Cari Catatan Poin / Konseling / Laporan Guru</label>
+              <input type="search" id="adminSearchData" class="form-control"
+                     placeholder="Cari ID, nama siswa, kelas, keterangan, pelapor, atau status..." oninput="renderAdminDataView()">
+            </div>
+            <div class="col-12 col-md-4">
+              <label for="adminDataLimitSelect" class="form-label small fw-semibold mb-1">Batasan Baris per Tabel</label>
+              <select id="adminDataLimitSelect" class="form-select" onchange="renderAdminDataView()">
+                <option value="25" selected>25 baris terbaru</option>
+                <option value="50">50 baris terbaru</option>
+                <option value="100">100 baris terbaru</option>
+                <option value="all">Tampilkan semua</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         <div class="content-card mb-4">
           <div class="p-3 p-md-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
@@ -820,6 +873,7 @@
               <tbody id="adminTabelCatatanBody"></tbody>
             </table>
           </div>
+          <div class="p-2 px-3 bg-light border-top small text-muted" id="adminCatatanLimitNote"></div>
         </div>
 
         <div class="row g-4">
@@ -842,6 +896,7 @@
                   <tbody id="adminTabelKonselingBody"></tbody>
                 </table>
               </div>
+              <div class="p-2 px-3 bg-light border-top small text-muted" id="adminKonselingLimitNote"></div>
             </div>
           </div>
 
@@ -864,6 +919,7 @@
                   <tbody id="adminTabelLaporanBody"></tbody>
                 </table>
               </div>
+              <div class="p-2 px-3 bg-light border-top small text-muted" id="adminLaporanLimitNote"></div>
             </div>
           </div>
         </div>
@@ -998,6 +1054,12 @@
           <h3 class="h6 fw-bold mb-2">Riwayat Konseling</h3>
           <div id="riwayatSiswaKonselingList" class="d-flex flex-column gap-2"></div>
         </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-primary fw-semibold" id="btnPrintStudentReport" onclick="printCurrentStudentReport()">
+            <i class="bi bi-printer-fill me-1" aria-hidden="true"></i> Cetak Rekap / Surat SP
+          </button>
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1122,9 +1184,12 @@
     </div>
   </div>
 
+  <!-- AREA CETAK / PRINT KHUSUS REKAP SISWA -->
+  <section id="printReportArea" aria-hidden="true"></section>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="js/local-backend.js?v=20261115b"></script>
-  <script src="js/api.js?v=20261115b"></script>
-  <script src="js/app.js?v=20261115b"></script>
+  <script src="js/local-backend.js?v=20261115c"></script>
+  <script src="js/api.js?v=20261115c"></script>
+  <script src="js/app.js?v=20261115c"></script>
 </body>
 </html>

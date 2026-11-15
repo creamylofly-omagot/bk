@@ -560,13 +560,11 @@ BEGIN
     INTO v_konseling FROM public.ebk_konseling k WHERE k.id_siswa = v_sid;
   END IF;
 
-  IF v_me.role = 'Admin' THEN
-    SELECT jsonb_build_object(
-      'namaSekolah', COALESCE((SELECT value FROM public.ebk_pengaturan_sekolah WHERE key = 'Nama_Sekolah'), 'SMKN 1 Kota Binjai'),
-      'alamat', COALESCE((SELECT value FROM public.ebk_pengaturan_sekolah WHERE key = 'Alamat'), ''),
-      'tahunAjaran', COALESCE((SELECT value FROM public.ebk_pengaturan_sekolah WHERE key = 'Tahun_Ajaran'), '')
-    ) INTO v_school;
-  END IF;
+  SELECT jsonb_build_object(
+    'namaSekolah', COALESCE((SELECT value FROM public.ebk_pengaturan_sekolah WHERE key = 'Nama_Sekolah'), 'SMKN 1 Kota Binjai'),
+    'alamat', COALESCE((SELECT value FROM public.ebk_pengaturan_sekolah WHERE key = 'Alamat'), ''),
+    'tahunAjaran', COALESCE((SELECT value FROM public.ebk_pengaturan_sekolah WHERE key = 'Tahun_Ajaran'), '')
+  ) INTO v_school;
 
   RETURN jsonb_build_object(
     'success', true,
@@ -1355,6 +1353,97 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.ebk_import_users_csv(p_token TEXT, p_rows JSONB)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_row JSONB;
+  v_role TEXT;
+  v_nama TEXT;
+  v_kelas TEXT;
+  v_pw TEXT;
+  v_terkait TEXT;
+  v_prefix TEXT;
+  v_new_id TEXT;
+  v_added INTEGER := 0;
+  v_skipped INTEGER := 0;
+  v_default_pw TEXT;
+BEGIN
+  PERFORM public.ebk_require_session(p_token, ARRAY['Admin']);
+
+  IF p_rows IS NULL OR jsonb_typeof(p_rows) <> 'array' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Format data CSV tidak valid.');
+  END IF;
+  IF jsonb_array_length(p_rows) = 0 THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Tidak ada baris akun untuk diimpor.');
+  END IF;
+  IF jsonb_array_length(p_rows) > 500 THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Maksimal 500 akun per sekali impor.');
+  END IF;
+
+  v_default_pw := public.ebk_hash_pw('123456');
+
+  FOR v_row IN SELECT * FROM jsonb_array_elements(p_rows)
+  LOOP
+    v_role := btrim(COALESCE(v_row->>'role', ''));
+    v_nama := left(btrim(COALESCE(v_row->>'nama', '')), 100);
+    v_kelas := left(btrim(COALESCE(v_row->>'kelasInfo', '')), 100);
+    v_pw := COALESCE(v_row->>'password', '');
+    v_terkait := btrim(COALESCE(v_row->>'terkaitIdSiswa', ''));
+
+    IF v_role NOT IN ('Murid', 'Guru', 'Ortu', 'Guru_BK') OR v_nama = '' OR v_kelas = '' THEN
+      v_skipped := v_skipped + 1;
+      CONTINUE;
+    END IF;
+
+    IF v_pw <> '' AND length(v_pw) < 6 THEN
+      v_skipped := v_skipped + 1;
+      CONTINUE;
+    END IF;
+
+    IF v_role = 'Ortu' THEN
+      IF NOT EXISTS (SELECT 1 FROM public.ebk_users WHERE id = v_terkait AND role = 'Murid') THEN
+        v_skipped := v_skipped + 1;
+        CONTINUE;
+      END IF;
+    ELSE
+      v_terkait := '';
+    END IF;
+
+    v_prefix := CASE v_role
+      WHEN 'Murid' THEN 'SW'
+      WHEN 'Guru' THEN 'GR'
+      WHEN 'Ortu' THEN 'OT'
+      ELSE 'BK'
+    END;
+    v_new_id := public.ebk_next_id('users', v_prefix, 1, 2);
+
+    INSERT INTO public.ebk_users (id, role, nama, password, kelas_info, poin, status_sp, skorsing, terkait_id_siswa)
+    VALUES (
+      v_new_id, v_role, v_nama,
+      CASE WHEN v_pw = '' THEN v_default_pw ELSE public.ebk_hash_pw(v_pw) END,
+      v_kelas, 100, CASE WHEN v_role = 'Murid' THEN 'Aman' ELSE '-' END, 'Tidak', v_terkait
+    );
+    v_added := v_added + 1;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'added', v_added,
+    'skipped', v_skipped,
+    'message', v_added || ' akun berhasil diimpor' || CASE WHEN v_skipped > 0 THEN ' (' || v_skipped || ' baris dilewati).' ELSE '.' END
+  );
+EXCEPTION WHEN OTHERS THEN
+  IF left(SQLERRM, 8) = 'EXPIRED:' THEN
+    RETURN jsonb_build_object('success', false, 'expired', true, 'message', substr(SQLERRM, 9));
+  END IF;
+  RETURN jsonb_build_object('success', false, 'message', regexp_replace(SQLERRM, '^ERR:', ''));
+END;
+$$;
+
 -- 5. IZINKAN EKSEKUSI RPC UNTUK KLIEN WEBSITE (ANON)
 REVOKE ALL ON FUNCTION public.ebk_get_salt() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.ebk_hash_pw(TEXT) FROM PUBLIC, anon, authenticated;
@@ -1385,3 +1474,4 @@ GRANT EXECUTE ON FUNCTION public.ebk_delete_konseling(TEXT, TEXT) TO anon, authe
 GRANT EXECUTE ON FUNCTION public.ebk_delete_laporan_guru(TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.ebk_admin_tambah_konseling(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.ebk_save_school_config(TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ebk_import_users_csv(TEXT, JSONB) TO anon, authenticated;

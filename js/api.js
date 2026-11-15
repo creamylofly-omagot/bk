@@ -184,6 +184,8 @@
           }
         ];
       }
+      case 'importUsersCsv':
+        return ['ebk_import_users_csv', { p_token: args[0], p_rows: Array.isArray(args[1]) ? args[1] : [] }];
       default:
         throw new Error('Aksi tidak dikenal: ' + action);
     }

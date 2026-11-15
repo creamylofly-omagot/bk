@@ -15,8 +15,10 @@
   let comboboxActiveIndex = -1;
   let comboboxMatches = [];
   let adminActiveView = 'bk';
+  let currentRiwayatStudentId = '';
   let sessionToken = null;
   let loadingTimer = null;
+  const SESSION_STORAGE_KEY = 'ebk_session_token';
 
   const ROLE_LABELS = {
     Murid: 'Murid',
@@ -249,6 +251,7 @@
   function forceLogout() {
     currentUser = null;
     sessionToken = null;
+    try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) {}
     isSettingsOpen = false;
     isTabelBKExpanded = true;
     bkStatusFilter = 'all';
@@ -311,6 +314,7 @@
       if (res.success) {
         currentUser = res.user;
         sessionToken = res.token;
+        try { sessionStorage.setItem(SESSION_STORAGE_KEY, sessionToken); } catch (e) {}
         showToast(`Selamat datang, ${currentUser.nama}!`);
         enterMainApplication();
       } else {
@@ -340,8 +344,8 @@
     }
     currentUser = null;
     sessionToken = null;
+    try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) {}
     isSettingsOpen = false;
-    isTabelBKExpanded = true;
     bkStatusFilter = 'all';
     guruOnlyBinaan = false;
     adminActiveView = 'bk';
@@ -676,6 +680,7 @@
   function openRiwayatSiswaModal(idSiswa) {
     const s = appData.students.find(x => x.id === idSiswa);
     if (!s) return;
+    currentRiwayatStudentId = s.id;
     $('riwayatSiswaSummary').innerHTML = `
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
         <div>
@@ -734,6 +739,93 @@
     }
 
     bootstrap.Modal.getOrCreateInstance($('modalRiwayatSiswa')).show();
+  }
+
+  function printCurrentStudentReport() {
+    const s = appData.students.find(x => String(x.id) === String(currentRiwayatStudentId));
+    if (!s) return;
+    const cfg = appData.schoolConfig || {};
+    const namaSekolah = cfg.namaSekolah || 'SMKN 1 Kota Binjai';
+    const alamatSekolah = cfg.alamat || 'Jl. Samanhudi No.20, Satria, Kec. Binjai Kota, Kota Binjai';
+    const tahunAjaran = cfg.tahunAjaran || '2026/2027';
+    const catatanRows = appData.catatan.filter(c => String(c.idSiswa) === String(s.id));
+    const ksRows = appData.konseling.filter(k => String(k.idSiswa) === String(s.id));
+    const tglCetak = new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    }).format(new Date());
+
+    const catatanHtml = catatanRows.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;">Belum ada catatan pelanggaran maupun prestasi.</td></tr>'
+      : catatanRows.map((c, idx) => {
+          const deltaStr = c.perubahanPoin > 0 ? '+' + c.perubahanPoin : String(c.perubahanPoin);
+          return `<tr>
+            <td>${idx + 1}</td>
+            <td>${esc(c.tanggal)}</td>
+            <td>${esc(c.jenis)}</td>
+            <td>${esc(c.keterangan)}<br><small>Pelapor: ${esc(c.pelapor)}</small></td>
+            <td style="text-align:right;font-weight:bold;">${esc(deltaStr)}</td>
+          </tr>`;
+        }).join('');
+
+    const ksHtml = ksRows.length === 0
+      ? '<p style="margin:0 0 12px;">Belum ada riwayat layanan konseling.</p>'
+      : `<table class="print-table">
+          <thead><tr><th>Tanggal</th><th>Topik</th><th>Status</th><th>Jadwal / Catatan BK</th></tr></thead>
+          <tbody>${ksRows.map(k => `<tr>
+            <td>${esc(k.tanggal)}</td>
+            <td>${esc(k.topik)}</td>
+            <td>${esc(k.status)}</td>
+            <td>${esc(k.jadwal)} — ${esc(k.catatanBK)}</td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+
+    $('printReportArea').innerHTML = `
+      <div class="print-kop">
+        <h2 style="margin:0;font-size:15pt;font-weight:800;">${esc(namaSekolah)}</h2>
+        <p style="margin:2px 0;font-size:10pt;">${esc(alamatSekolah)}</p>
+        <p style="margin:0;font-size:10pt;">Layanan Bimbingan &amp; Konseling • Tahun Ajaran ${esc(tahunAjaran)}</p>
+      </div>
+      <h3 style="text-align:center;font-size:13pt;font-weight:700;margin:0 0 12px;text-decoration:underline;">
+        REKAPITULASI POIN KEDISIPLINAN &amp; PEMBINAAN SISWA
+      </h3>
+      <table style="width:100%;margin-bottom:12px;font-size:11pt;">
+        <tr><td style="width:160px;">Nama Siswa</td><td>: <strong>${esc(s.nama)}</strong> (${esc(s.id)})</td></tr>
+        <tr><td>Kelas</td><td>: ${esc(s.kelasInfo)}</td></tr>
+        <tr><td>Poin Kedisiplinan</td><td>: <strong>${esc(s.poin)} / 100</strong></td></tr>
+        <tr><td>Status Pembinaan</td><td>: <strong>${esc(s.statusSP)}</strong> (Skorsing: ${esc(s.skorsing)})</td></tr>
+      </table>
+      <h4 style="font-size:11pt;font-weight:700;margin:10px 0 6px;">A. Riwayat Catatan Poin</h4>
+      <table class="print-table">
+        <thead><tr><th style="width:36px;">No</th><th style="width:95px;">Tanggal</th><th style="width:95px;">Jenis</th><th>Keterangan</th><th style="width:65px;text-align:right;">Poin</th></tr></thead>
+        <tbody>${catatanHtml}</tbody>
+      </table>
+      <h4 style="font-size:11pt;font-weight:700;margin:10px 0 6px;">B. Riwayat Layanan Konseling</h4>
+      ${ksHtml}
+      <div class="print-signatures">
+        <div>
+          <div>Orang Tua / Wali Murid,</div>
+          <div class="print-sign-space"></div>
+          <div>( .................................... )</div>
+        </div>
+        <div>
+          <div>Mengetahui,<br>Waka Kesiswaan / Kepala Sekolah</div>
+          <div class="print-sign-space"></div>
+          <div>( .................................... )</div>
+        </div>
+        <div>
+          <div>Binjai, ${esc(tglCetak)}<br>Guru Bimbingan Konseling</div>
+          <div class="print-sign-space"></div>
+          <div>( ${esc(currentUser ? currentUser.nama : 'Guru BK')} )</div>
+        </div>
+      </div>
+    `;
+
+    const modalInst = bootstrap.Modal.getInstance($('modalRiwayatSiswa'));
+    if (modalInst) modalInst.hide();
+    setTimeout(() => globalScope.print(), 180);
   }
 
   function openVerifikasiLaporanModal() {
@@ -1491,13 +1583,24 @@
       });
     }
 
-    $('adminTotalCatatanBadge').innerText = `${appData.catatan.length} Catatan`;
+    const query = ($('adminSearchData') ? $('adminSearchData').value : '').toLowerCase().trim();
+    const limitVal = $('adminDataLimitSelect') ? $('adminDataLimitSelect').value : '25';
+    const limit = limitVal === 'all' ? Infinity : Number(limitVal) || 25;
+
+    const filteredCatatan = appData.catatan.filter(c =>
+      !query ||
+      [c.id, c.tanggal, c.namaSiswa, c.kelas, c.jenis, c.keterangan, c.pelapor].some(v => String(v || '').toLowerCase().includes(query))
+    );
+    const shownCatatan = filteredCatatan.slice(0, limit);
+    $('adminTotalCatatanBadge').innerText = `${filteredCatatan.length} Catatan`;
+    $('adminCatatanLimitNote').innerText = `Menampilkan ${shownCatatan.length} dari ${filteredCatatan.length} catatan` + (filteredCatatan.length !== appData.catatan.length ? ` (total ${appData.catatan.length})` : '');
+
     const ctBody = $('adminTabelCatatanBody');
     ctBody.innerHTML = '';
-    if (appData.catatan.length === 0) {
-      ctBody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">Belum ada catatan poin.</td></tr>';
+    if (shownCatatan.length === 0) {
+      ctBody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">Tidak ada catatan poin yang cocok.</td></tr>';
     } else {
-      appData.catatan.forEach(c => {
+      shownCatatan.forEach(c => {
         const isPositive = c.jenis !== 'Pelanggaran';
         const deltaStr = c.perubahanPoin > 0 ? '+' + c.perubahanPoin : String(c.perubahanPoin);
         ctBody.innerHTML += `
@@ -1518,13 +1621,20 @@
       });
     }
 
-    $('adminTotalKonselingBadge').innerText = String(appData.konseling.length);
+    const filteredKonseling = appData.konseling.filter(k =>
+      !query ||
+      [k.id, k.tanggal, k.namaSiswa, k.kelas, k.topik, k.cerita, k.status, k.jadwal].some(v => String(v || '').toLowerCase().includes(query))
+    );
+    const shownKonseling = filteredKonseling.slice(0, limit);
+    $('adminTotalKonselingBadge').innerText = String(filteredKonseling.length);
+    $('adminKonselingLimitNote').innerText = `Menampilkan ${shownKonseling.length} dari ${filteredKonseling.length} data`;
+
     const ksBody = $('adminTabelKonselingBody');
     ksBody.innerHTML = '';
-    if (appData.konseling.length === 0) {
-      ksBody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Belum ada data konseling.</td></tr>';
+    if (shownKonseling.length === 0) {
+      ksBody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Tidak ada data konseling yang cocok.</td></tr>';
     } else {
-      appData.konseling.forEach(k => {
+      shownKonseling.forEach(k => {
         ksBody.innerHTML += `
           <tr>
             <td class="small fw-bold text-muted">${esc(k.id)}</td>
@@ -1540,14 +1650,21 @@
       });
     }
 
-    const lpList = appData.laporan || [];
-    $('adminTotalLaporanBadge').innerText = String(lpList.length);
+    const allLaporan = appData.laporan || [];
+    const filteredLaporan = allLaporan.filter(l =>
+      !query ||
+      [l.id, l.tanggal, l.namaSiswa, l.kelas, l.pelapor, l.keterangan, l.status].some(v => String(v || '').toLowerCase().includes(query))
+    );
+    const shownLaporan = filteredLaporan.slice(0, limit);
+    $('adminTotalLaporanBadge').innerText = String(filteredLaporan.length);
+    $('adminLaporanLimitNote').innerText = `Menampilkan ${shownLaporan.length} dari ${filteredLaporan.length} laporan`;
+
     const lpBody = $('adminTabelLaporanBody');
     lpBody.innerHTML = '';
-    if (lpList.length === 0) {
-      lpBody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Belum ada laporan guru.</td></tr>';
+    if (shownLaporan.length === 0) {
+      lpBody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Tidak ada laporan guru yang cocok.</td></tr>';
     } else {
-      lpList.forEach(l => {
+      shownLaporan.forEach(l => {
         lpBody.innerHTML += `
           <tr>
             <td class="small fw-bold text-muted">${esc(l.id)}</td>
@@ -1617,6 +1734,159 @@
       hideLoading();
       showToast('Gagal menghapus data: ' + err.message, 'error');
     }
+  }
+
+  function splitCsvLine(line, delimiter) {
+    const out = [];
+    let cur = '';
+    let inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuote && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuote = !inQuote;
+        }
+      } else if (ch === delimiter && !inQuote) {
+        out.push(cur.trim());
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur.trim());
+    return out;
+  }
+
+  function parseCsvImportText(text, defaultRole) {
+    const lines = String(text || '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
+
+    const rows = [];
+    lines.forEach((line, idx) => {
+      const delimiter = line.includes(';') && !line.includes(',') ? ';' : ',';
+      const cols = splitCsvLine(line, delimiter);
+      if (idx === 0 && /^(role|peran|nama)$/i.test(cols[0])) return;
+
+      if (cols.length >= 3 && /^(Murid|Guru|Ortu|Guru_BK)$/i.test(cols[0])) {
+        const roleNorm = { murid: 'Murid', guru: 'Guru', ortu: 'Ortu', guru_bk: 'Guru_BK' }[cols[0].toLowerCase()];
+        rows.push({
+          role: roleNorm,
+          nama: cols[1] || '',
+          kelasInfo: cols[2] || '',
+          password: cols[3] || '',
+          terkaitIdSiswa: cols[4] || ''
+        });
+      } else if (cols.length >= 2) {
+        rows.push({
+          role: defaultRole,
+          nama: cols[0] || '',
+          kelasInfo: cols[1] || '',
+          password: cols[2] || '',
+          terkaitIdSiswa: ''
+        });
+      }
+    });
+    return rows;
+  }
+
+  function downloadCsvTemplate() {
+    const sample = [
+      'Role,Nama,Kelas_Info,Password,Terkait_ID_Siswa',
+      'Murid,Contoh Siswa Satu,XI RPL 1,123456,',
+      'Murid,Contoh Siswa Dua,XI TKJ 1,,',
+      'Guru,"Drs. Contoh Guru, M.Pd",Wali Kelas XI RPL 2,123456,',
+      'Ortu,Wali Contoh Siswa,Ortu XI RPL 1,123456,SW01'
+    ].join('\r\n');
+    const blob = new Blob(['\uFEFF' + sample], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'template-import-akun-ebk.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function loadCsvFileToTextarea(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      $('csvImportText').value = String(reader.result || '');
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  async function handleImportUsersCsv() {
+    const raw = $('csvImportText').value.trim();
+    if (!raw) {
+      showToast('Isi atau pilih file CSV terlebih dahulu.', 'warning');
+      return;
+    }
+    const defaultRole = $('csvImportRoleDefault').value;
+    const rows = parseCsvImportText(raw, defaultRole);
+    if (rows.length === 0) {
+      showToast('Tidak ada baris valid. Gunakan format Nama,Kelas atau Role,Nama,Kelas_Info.', 'warning');
+      return;
+    }
+    if (rows.length > 500) {
+      showToast('Maksimal 500 akun per sekali impor.', 'warning');
+      return;
+    }
+
+    showLoading(`Mengimpor ${rows.length} akun...`);
+    try {
+      const res = await BackendAPI.call('importUsersCsv', sessionToken, rows);
+      hideLoading();
+      showToast(res.message, res.success ? 'success' : 'error');
+      if (res.success) {
+        $('csvImportText').value = '';
+        if ($('csvImportFile')) $('csvImportFile').value = '';
+        refreshAllData();
+      }
+    } catch (err) {
+      hideLoading();
+      showToast('Gagal impor CSV: ' + err.message, 'error');
+    }
+  }
+
+  async function tryRestoreSession() {
+    let saved = null;
+    try { saved = sessionStorage.getItem(SESSION_STORAGE_KEY); } catch (e) {}
+    if (!saved) return false;
+
+    showLoading('Memulihkan sesi Anda...');
+    try {
+      const res = await BackendAPI.call('getAllAppData', saved);
+      hideLoading();
+      if (res && res.success && res.me) {
+        sessionToken = saved;
+        appData = Object.assign({ users: [], students: [], catatan: [], konseling: [], laporan: [], schoolConfig: {} }, res);
+        currentUser = res.me;
+        $('loginSection').style.display = 'none';
+        $('mainAppSection').style.display = 'block';
+        $('navUserName').innerText = currentUser.nama.split(',')[0];
+        $('navRoleBadge').innerText = ROLE_LABELS[currentUser.role] || currentUser.role.replace('_', ' ');
+        $('btnNavSettings').style.display = currentUser.role === 'Admin' ? 'inline-flex' : 'none';
+        $('adminControlBar').style.display = currentUser.role === 'Admin' ? 'block' : 'none';
+        adminActiveView = 'bk';
+        populateStudentSelectOptions();
+        renderActiveRoleView();
+        return true;
+      }
+    } catch (e) {
+      hideLoading();
+    }
+    try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch (e) {}
+    return false;
   }
   // =========================================================================
   // EVENT BINDINGS & INIT
@@ -1738,7 +2008,8 @@
 
     await BackendAPI.init();
     updateConnectionBadge();
-    loadLoginAccounts();
+    const restored = await tryRestoreSession();
+    if (!restored) loadLoginAccounts();
   });
 
   // Expose UI callbacks used by static HTML attributes
@@ -1775,9 +2046,12 @@
     updateDefaultPoinInput,
     handleSimpanCatatanPoin,
     handleSimpanTindakan,
-    handleUbahSandi
-    ,
+    handleUbahSandi,
     handleSaveSchoolConfig,
-    handleAdminTambahKonseling
+    handleAdminTambahKonseling,
+    printCurrentStudentReport,
+    downloadCsvTemplate,
+    loadCsvFileToTextarea,
+    handleImportUsersCsv
   });
 })(window);
