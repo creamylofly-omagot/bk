@@ -487,6 +487,7 @@ DECLARE
   v_laporan JSONB := '[]'::JSONB;
   v_school JSONB := '{}'::JSONB;
   v_sid TEXT;
+BEGIN
   v_me := public.ebk_require_session(p_token);
 
   IF v_me.role IN ('Guru_BK', 'Admin') THEN

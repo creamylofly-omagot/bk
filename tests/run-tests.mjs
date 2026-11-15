@@ -83,6 +83,20 @@ function runStaticHtmlAndContractChecks() {
     assert.ok(sql.includes(`GRANT EXECUTE ON FUNCTION public.${rpcName}(`), `Missing GRANT for ${rpcName}`);
   }
 
+  // 3b. Verify every PL/pgSQL function has balanced DECLARE/BEGIN/END and IF/END IF
+  for (const m of sql.matchAll(/CREATE OR REPLACE FUNCTION public\.([a-z0-9_]+)\([\s\S]*?LANGUAGE plpgsql[\s\S]*?AS \$\$([\s\S]*?)\$\$;/g)) {
+    const [, fnName, body] = m;
+    assert.match(body, /\bBEGIN\b/, `${fnName}: missing BEGIN`);
+    assert.match(body.trim(), /\bEND;\s*$/, `${fnName}: missing END;`);
+    if (/\bDECLARE\b/.test(body)) {
+      const decl = body.split(/\bBEGIN\b/)[0];
+      assert.ok(!/\b(IF|PERFORM|SELECT|UPDATE|INSERT|DELETE)\b/.test(decl), `${fnName}: statement found in DECLARE`);
+    }
+    const ifCount = (body.match(/^\s*IF\b[\s\S]*?\bTHEN\b/gm) || []).length;
+    const endIfCount = (body.match(/\bEND IF\s*;/g) || []).length;
+    assert.equal(ifCount, endIfCount, `${fnName}: IF (${ifCount}) != END IF (${endIfCount})`);
+  }
+
   // 4. Verify Supabase headers handle sb_publishable_ vs JWT anon keys
   const pubHeaders = BackendAPI.buildSupabaseHeaders('sb_publishable_testkey');
   assert.equal(pubHeaders.apikey, 'sb_publishable_testkey');
