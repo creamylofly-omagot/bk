@@ -948,11 +948,12 @@
             <div class="mb-3">
               <label for="inputSupabaseUrl" class="form-label small fw-semibold">Supabase Project URL</label>
               <input type="url" class="form-control" id="inputSupabaseUrl" placeholder="https://xxxxxxxxxxxx.supabase.co">
+              <div class="form-text small">Ambil dari tombol <strong>Connect</strong> di atas dashboard Supabase, atau <strong>Settings → Data API</strong>.</div>
             </div>
             <div class="mb-3">
-              <label for="inputSupabaseAnonKey" class="form-label small fw-semibold">Supabase Anon / Publishable Key</label>
-              <input type="text" class="form-control" id="inputSupabaseAnonKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-              <div class="form-text small">Pastikan file <code>supabase/schema.sql</code> sudah dijalankan di SQL Editor Supabase.</div>
+              <label for="inputSupabaseAnonKey" class="form-label small fw-semibold">Supabase Publishable / Anon Key</label>
+              <input type="text" class="form-control" id="inputSupabaseAnonKey" placeholder="sb_publishable_... atau eyJhbGciOi...">
+              <div class="form-text small">Ambil dari <strong>Settings → API Keys</strong> (jangan pakai Secret key). Pastikan <code>supabase/schema.sql</code> sudah dijalankan.</div>
             </div>
           </div>
 
@@ -1039,13 +1040,16 @@
 
     async function callSupabaseRpc(url, key, fnName, params) {
       const base = url.replace(/\/+$/, '');
+      const headers = {
+        'apikey': key,
+        'Content-Type': 'application/json'
+      };
+      if (/^eyJ/.test(key)) {
+        headers['Authorization'] = 'Bearer ' + key;
+      }
       const res = await fetch(`${base}/rest/v1/rpc/${fnName}`, {
         method: 'POST',
-        headers: {
-          'apikey': key,
-          'Authorization': 'Bearer ' + key,
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify(params || {})
       });
       const data = await res.json().catch(() => null);
@@ -1715,7 +1719,11 @@
         const sbUrl = document.getElementById('inputSupabaseUrl').value.trim().replace(/\/+$/, '');
         const sbKey = document.getElementById('inputSupabaseAnonKey').value.trim();
         if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(sbUrl) || !sbKey) {
-          showToast('Isi Project URL (https://....supabase.co) dan Anon Key dengan benar.', 'warning');
+          showToast('Isi Project URL (https://....supabase.co) dan Publishable/Anon Key dengan benar.', 'warning');
+          return;
+        }
+        if (/^sb_secret_/i.test(sbKey)) {
+          showToast('Jangan gunakan Secret key di browser! Gunakan Publishable key (sb_publishable_...) atau Legacy anon key.', 'error');
           return;
         }
         showLoading('Menguji koneksi ke Supabase...');
