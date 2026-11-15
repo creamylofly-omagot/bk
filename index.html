@@ -1,0 +1,2388 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-BK | SMKN 1 Kota Binjai</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5.3 CSS & Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+  <style>
+    :root {
+      --primary-color: #0f4c81;
+      --primary-light: #e8f1fa;
+      --accent-color: #198754;
+      --bg-surface: #f4f7fb;
+      --card-radius: 16px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-surface);
+      color: #1e293b;
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-size: 15.5px;
+      line-height: 1.55;
+    }
+
+    :focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+    .btn, .form-control, .form-select { min-height: 44px; }
+    .btn-sm { min-height: 38px; }
+    .stat-card h2 { font-variant-numeric: tabular-nums; }
+    .text-muted { color: #52627a !important; }
+
+    /* Styling Khusus Halaman Login */
+    .login-wrapper {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f4c81 0%, #1e3a8a 50%, #0d9488 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.25rem;
+    }
+
+    .login-card {
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      width: 100%;
+      max-width: 460px;
+      padding: 2.25rem 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-top: 6px solid #0d9488;
+    }
+
+    .school-logo-circle {
+      width: 76px;
+      height: 76px;
+      background: linear-gradient(135deg, #0f4c81, #2563eb);
+      color: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem auto;
+      box-shadow: 0 10px 20px rgba(15, 76, 129, 0.25);
+    }
+
+    /* Tab Pilihan Peran dengan Garis Bawah Aktif */
+    .role-tabs {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 1.5rem;
+      gap: 0.25rem;
+    }
+
+    .role-tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 0.75rem 0.25rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #64748b;
+      position: relative;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .role-tab-btn:hover { color: var(--primary-color); }
+    .role-tab-btn.active { color: var(--primary-color); font-weight: 700; }
+    .role-tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 100%;
+      height: 3.5px;
+      background-color: var(--primary-color);
+      border-radius: 4px 4px 0 0;
+    }
+
+    /* Dashboard & Komponen Utama */
+    .app-navbar {
+      background: #ffffff;
+      box-shadow: 0 2px 15px rgba(0, 0, 0, 0.04);
+      padding: 0.75rem 0;
+      position: sticky;
+      top: 0;
+      z-index: 1020;
+    }
+
+    .stat-card {
+      background: #ffffff;
+      border-radius: var(--card-radius);
+      border: 1px solid #e2e8f0;
+      padding: 1.25rem;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      height: 100%;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 24px -8px rgba(15, 76, 129, 0.12);
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+
+    .btn-primary-action {
+      background: linear-gradient(135deg, #0f4c81 0%, #1d4ed8 100%);
+      border: none;
+      color: #ffffff;
+      border-radius: 14px;
+      padding: 0.9rem 1.5rem;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      box-shadow: 0 8px 20px rgba(29, 78, 216, 0.25);
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px rgba(29, 78, 216, 0.35);
+      color: #ffffff;
+    }
+
+    .content-card {
+      background: #ffffff;
+      border-radius: var(--card-radius);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+      overflow: hidden;
+    }
+
+    .table thead th {
+      background-color: #f8fafc;
+      color: #475569;
+      font-weight: 600;
+      font-size: 0.86rem;
+      border-bottom: 2px solid #e2e8f0;
+      padding: 0.9rem 1rem;
+    }
+
+    .table tbody td {
+      padding: 0.95rem 1rem;
+      vertical-align: middle;
+      font-size: 0.92rem;
+    }
+
+    .btn-oval-floating {
+      border-radius: 50px;
+      padding: 0.65rem 1.75rem;
+      font-weight: 600;
+      box-shadow: 0 6px 16px rgba(15, 76, 129, 0.18);
+    }
+
+    .toast-container { z-index: 1090; }
+
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .badge-sp-aman { background-color: #dcfce7; color: #166534; }
+    .badge-sp-1 { background-color: #fef9c3; color: #854d0e; }
+    .badge-sp-2 { background-color: #ffedd5; color: #9a3412; }
+    .badge-sp-3 { background-color: #fee2e2; color: #991b1b; }
+
+    .poin-chip { display: inline-block; min-width: 64px; text-align: center; padding: 2px 10px; border-radius: 8px; font-weight: 700; }
+    .poin-ok { background: #dcfce7; color: #166534; }
+    .poin-warn { background: #fef9c3; color: #854d0e; }
+    .poin-bad { background: #fee2e2; color: #991b1b; }
+
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+    @media (max-width: 640px) {
+      .table-stack thead { display: none; }
+      .table-stack tr { display: block; padding: .7rem 1rem; border-bottom: 1px solid #e2e8f0; }
+      .table-stack td { display: flex; justify-content: space-between; align-items: center; gap: 1rem; border: 0 !important; padding: .3rem 0 !important; text-align: right; }
+      .table-stack td::before { content: attr(data-label); font-weight: 600; color: #52627a; text-align: left; }
+      .table-stack td[colspan]::before { content: none; }
+      .login-card { padding: 1.5rem 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+    <p class="mt-3 fw-semibold text-dark" id="loadingText">Memuat data SMKN 1 Kota Binjai...</p>
+  </div>
+
+  <!-- Toast Notifikasi -->
+  <div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="appToast" class="toast align-items-center border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body fw-medium" id="toastMessage">Pesan notifikasi</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Tutup"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       1. HALAMAN LOGIN
+       ===================================================================== -->
+  <section id="loginSection" class="login-wrapper">
+    <div class="login-card">
+      <div class="school-logo-circle">
+        <i class="bi bi-shield-check fs-1"></i>
+      </div>
+
+      <div class="text-center mb-4">
+        <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1 mb-2 fw-semibold">
+          SMKN 1 Kota Binjai
+        </span>
+        <h3 class="fw-bold text-dark mb-1">Masuk ke BK</h3>
+        <p class="text-muted small mb-0">Jl. Samanhudi No.20, Satria, Kec. Binjai Kota</p>
+      </div>
+
+      <div class="role-tabs" id="roleTabs">
+        <button type="button" class="role-tab-btn active" data-role="Murid" onclick="selectLoginRole('Murid', this)">Murid</button>
+        <button type="button" class="role-tab-btn" data-role="Guru" onclick="selectLoginRole('Guru', this)">Guru</button>
+        <button type="button" class="role-tab-btn" data-role="Ortu" onclick="selectLoginRole('Ortu', this)">Ortu</button>
+        <button type="button" class="role-tab-btn" data-role="Guru_BK" onclick="selectLoginRole('Guru_BK', this)">Guru BK</button>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="mb-3">
+          <label for="loginAccountSelect" class="form-label fw-semibold small text-secondary">
+            Pilih Akun (<span id="selectedRoleLabel">Murid</span>)
+          </label>
+          <select class="form-select form-select-lg rounded-3 fs-6" id="loginAccountSelect" required>
+            <option value="">-- Memuat daftar akun... --</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label for="loginPassword" class="form-label fw-semibold small text-secondary">
+            Kata Sandi
+          </label>
+          <div class="input-group input-group-lg">
+            <input type="password" class="form-control rounded-start-3 fs-6" id="loginPassword"
+                   placeholder="Masukkan sandi" autocomplete="current-password" required>
+            <button class="btn btn-outline-secondary" type="button" id="btnTogglePw" aria-label="Tampilkan sandi" onclick="togglePw()">
+              <i class="bi bi-eye"></i>
+            </button>
+            <button class="btn btn-primary px-4 fw-semibold rounded-end-3" type="submit">
+              Masuk <i class="bi bi-arrow-right-short"></i>
+            </button>
+          </div>
+          <div class="form-text text-muted small mt-2">
+            <i class="bi bi-info-circle me-1"></i> Lupa sandi? Hubungi Guru BK di Ruang BK.
+          </div>
+        </div>
+      </form>
+
+      <div class="border-top pt-3 mt-3 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <span class="badge rounded-pill bg-light text-dark border fw-medium" id="connectionModeBadge">
+          <i class="bi bi-hdd-stack me-1 text-primary"></i> Memeriksa mode...
+        </span>
+        <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 fw-semibold" id="btnOpenConnModal" onclick="openConnectionModal()">
+          <i class="bi bi-plug me-1"></i>Koneksi Database
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =====================================================================
+       2. APLIKASI UTAMA
+       ===================================================================== -->
+  <div id="mainAppSection" style="display: none;">
+    <header class="app-navbar">
+      <div class="container-fluid px-3 px-lg-4">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-2 gap-md-3">
+            <div class="bg-primary text-white rounded-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+              <i class="bi bi-mortarboard-fill fs-5"></i>
+            </div>
+            <div>
+              <h6 class="fw-bold mb-0 text-dark">Bimbingan Konseling</h6>
+              <small class="text-muted" style="font-size: 0.78rem;"><span id="navRoleText">SMKN 1 Kota Binjai</span></small>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" id="btnNavSettings" style="display:none" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-medium" onclick="toggleSettingsView()">
+              <i class="bi bi-gear-fill me-1"></i> <span class="d-none d-md-inline">Pengaturan</span>
+            </button>
+
+            <button type="button" class="btn btn-light border btn-sm rounded-pill px-3 fw-semibold text-primary" onclick="openProfileModal()">
+              <i class="bi bi-person-circle me-1"></i> <span id="navUserName">Profil</span>
+            </button>
+
+            <button type="button" class="btn btn-danger btn-sm rounded-circle d-flex align-items-center justify-content-center"
+                    style="width: 38px; height: 38px;" title="Keluar (Logout)" aria-label="Keluar" onclick="logoutUser()">
+              <i class="bi bi-box-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container-fluid px-3 px-lg-4 py-4">
+
+      <!-- VIEW A: DASHBOARD GURU BK -->
+      <div id="viewGuruBK" style="display: none;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+          <div>
+            <h4 class="fw-bold text-dark mb-1">Dashboard Guru BK</h4>
+            <p class="text-muted small mb-0">SMKN 1 Kota Binjai • Monitoring Kedisiplinan & Layanan Konseling</p>
+          </div>
+          <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="refreshAllData()">
+            <i class="bi bi-arrow-clockwise me-1"></i> Segarkan Data
+          </button>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-lg-3">
+            <div class="stat-card">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <span class="text-muted small fw-semibold d-block mb-1">Lokal Siswa</span>
+                  <h2 class="fw-bold text-dark mb-0" id="statLokalSiswa">0</h2>
+                  <small class="text-primary fw-medium" id="statJumlahKelas">0 Kelas Aktif</small>
+                </div>
+                <div class="stat-icon bg-primary-subtle text-primary">
+                  <i class="bi bi-people-fill"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-6 col-lg-3">
+            <div class="stat-card">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <span class="text-muted small fw-semibold d-block mb-1">Kasus SP (1-3)</span>
+                  <h2 class="fw-bold text-warning-emphasis mb-0" id="statKasusSP">0</h2>
+                  <small class="text-muted">Siswa dalam pembinaan</small>
+                </div>
+                <div class="stat-icon bg-warning-subtle text-warning">
+                  <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-6 col-lg-3">
+            <div class="stat-card" style="cursor: pointer;" onclick="openKonselingListModal()" title="Klik untuk melihat pengajuan konseling">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <span class="text-muted small fw-semibold d-block mb-1">Konseling</span>
+                  <h2 class="fw-bold text-info-emphasis mb-0" id="statKonseling">0</h2>
+                  <small class="text-info-emphasis fw-semibold">Klik tinjau pengajuan <i class="bi bi-chevron-right"></i></small>
+                </div>
+                <div class="stat-icon bg-info-subtle text-info">
+                  <i class="bi bi-chat-heart-fill"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-6 col-lg-3">
+            <div class="stat-card">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <span class="text-muted small fw-semibold d-block mb-1">Skorsing</span>
+                  <h2 class="fw-bold text-danger mb-0" id="statSkorsing">0</h2>
+                  <small class="text-muted">Siswa masa skorsing</small>
+                </div>
+                <div class="stat-icon bg-danger-subtle text-danger">
+                  <i class="bi bi-slash-circle-fill"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <button type="button" class="btn btn-primary-action w-100 py-3 fs-6 d-flex align-items-center justify-content-center gap-2"
+                  onclick="openCatatPoinModal()">
+            <i class="bi bi-plus-circle-fill fs-5"></i>
+            <span>+ Catat Pelanggaran / Prestasi</span>
+          </button>
+        </div>
+
+        <div class="content-card mb-4">
+          <div class="p-3 p-md-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+              <h5 class="fw-bold mb-0 text-dark">Daftar Siswa</h5>
+              <small class="text-muted">Poin awal 100. Status otomatis menyesuaikan sisa poin.</small>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 align-items-center" style="min-width: 260px;">
+              <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" id="bkSearchKelasInput" class="form-control border-start-0"
+                       placeholder="Cari sesuai kelas (mis: XI RPL 1)..." onkeyup="renderTabelSiswaBK()">
+              </div>
+            </div>
+          </div>
+
+          <div class="table-responsive" id="bkTableWrapper">
+            <table class="table table-hover table-stack mb-0">
+              <thead>
+                <tr>
+                  <th>Nama</th>
+                  <th>Siswa / Kelas</th>
+                  <th>Poin</th>
+                  <th>SP</th>
+                  <th>Status</th>
+                  <th>Keterangan</th>
+                  <th class="text-end">Tindakan</th>
+                </tr>
+              </thead>
+              <tbody id="bkTabelSiswaBody"></tbody>
+            </table>
+          </div>
+
+          <div class="p-3 bg-light border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="small text-muted" id="bkTotalSummaryText">
+              Total ditampilkan: <strong>0 Siswa</strong>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="btnToggleTabelBK" onclick="toggleTabelBK()">
+              <i class="bi bi-chevron-up me-1"></i> Tutup / Total
+            </button>
+          </div>
+        </div>
+
+        <div class="text-center pb-3">
+          <button type="button" class="btn btn-dark btn-oval-floating" onclick="openKonselingListModal()">
+            <i class="bi bi-chat-dots-fill me-2 text-info"></i> Lihat Antrean & Jadwal Konseling (<span id="ovalKonselingCount">0</span>)
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW B: MENU MURID -->
+      <div id="viewMurid" style="display: none;">
+        <div class="mb-4">
+          <h4 class="fw-bold text-dark mb-1">Portal Siswa Bimbingan Konseling</h4>
+          <p class="text-muted small mb-0" id="muridSubHeader">Selamat datang di layanan E-BK SMKN 1 Kota Binjai</p>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-6 col-lg-3">
+            <div class="stat-card">
+              <span class="text-muted small fw-semibold d-block mb-1">Poin Disiplin</span>
+              <div class="d-flex align-items-baseline justify-content-between mb-2">
+                <h3 class="fw-bold text-primary mb-0"><span id="muridPoinVal">100</span><span class="fs-6 text-muted">/100</span></h3>
+                <span class="badge bg-primary-subtle text-primary">Maks 100</span>
+              </div>
+              <div class="progress" style="height: 10px; border-radius: 10px;">
+                <div id="muridPoinBar" class="progress-bar bg-success" role="progressbar" style="width: 100%;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-6 col-lg-3">
+            <div class="stat-card">
+              <span class="text-muted small fw-semibold d-block mb-2">Status Kedisiplinan</span>
+              <h4 class="fw-bold mb-1" id="muridStatusText">Aman</h4>
+              <small class="text-muted">Evaluasi real-time</small>
+            </div>
+          </div>
+
+          <div class="col-6 col-lg-3">
+            <div class="stat-card">
+              <span class="text-muted small fw-semibold d-block mb-2">Tingkat SP</span>
+              <h4 class="fw-bold text-dark mb-1" id="muridJumlahSP">0 (Nihil)</h4>
+              <small class="text-muted">Surat Peringatan</small>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-3">
+            <div class="stat-card">
+              <span class="text-muted small fw-semibold d-block mb-2">Jadwal Konseling</span>
+              <div class="fw-bold text-dark small" id="muridJadwalKonseling">Belum ada jadwal</div>
+              <small class="text-primary" id="muridStatusKonselingBadge">-</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-12 col-lg-5">
+            <div class="content-card p-3 p-md-4 h-100">
+              <h5 class="fw-bold text-dark mb-1"><i class="bi bi-chat-square-text-fill text-primary me-2"></i>Ajukan Konseling</h5>
+              <p class="text-muted small mb-3">Ceritakan keluhan akademik, pribadi, atau karir Anda kepada Guru BK secara aman.</p>
+
+              <form id="formAjukanKonseling" onsubmit="handleAjukanKonseling(event)">
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Pilih Topik Konseling</label>
+                  <select class="form-select rounded-3" id="konselingTopik" required>
+                    <option value="Pribadi & Sosial">Pribadi & Sosial</option>
+                    <option value="Akademik & Belajar">Akademik & Kesulitan Belajar</option>
+                    <option value="Karir, PKL & Kuliah">Karir, PKL & Lanjut Kuliah</option>
+                    <option value="Masalah Kedisiplinan">Klarifikasi Kedisiplinan / Poin</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Tulis Cerita Singkat</label>
+                  <textarea class="form-control rounded-3" id="konselingCerita" rows="3"
+                            placeholder="Contoh: Ingin cerita sedikit tentang..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 rounded-3 fw-semibold py-2">
+                  <i class="bi bi-send-fill me-1"></i> Kirim Pengajuan Konseling
+                </button>
+              </form>
+
+              <hr class="my-4">
+              <h6 class="fw-bold small text-uppercase text-muted mb-3">Status Pengajuan Saya</h6>
+              <div id="muridListPengajuan" class="d-flex flex-column gap-2"></div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-7">
+            <div class="content-card h-100">
+              <div class="p-3 p-md-4 border-bottom">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Riwayat Catatan Poin</h5>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover table-stack mb-0">
+                  <thead>
+                    <tr>
+                      <th>Tanggal</th>
+                      <th>Catatan</th>
+                      <th>Jenis</th>
+                      <th class="text-end">Perubahan Poin</th>
+                    </tr>
+                  </thead>
+                  <tbody id="muridTabelRiwayat"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW C: MENU GURU / WALI KELAS -->
+      <div id="viewGuru" style="display: none;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+          <div>
+            <h4 class="fw-bold text-dark mb-1">Dashboard Wali Kelas & Guru</h4>
+            <p class="text-muted small mb-0" id="guruSubHeader">Monitoring Siswa Binaan SMKN 1 Kota Binjai</p>
+          </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-md-4">
+            <div class="stat-card">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <span class="text-muted small fw-semibold d-block mb-1">Siswa Binaan</span>
+                  <h2 class="fw-bold text-primary mb-0" id="guruStatBinaan">0</h2>
+                  <small class="text-muted" id="guruLabelKelasBinaan">Semua Kelas</small>
+                </div>
+                <div class="stat-icon bg-primary-subtle text-primary">
+                  <i class="bi bi-person-workspace"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-6 col-md-4">
+            <div class="stat-card">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <span class="text-muted small fw-semibold d-block mb-1">Siswa Perlu Perhatian (SP)</span>
+                  <h2 class="fw-bold text-danger mb-0" id="guruStatPerhatian">0</h2>
+                  <small class="text-muted">Status SP 1 - SP 3</small>
+                </div>
+                <div class="stat-icon bg-danger-subtle text-danger">
+                  <i class="bi bi-exclamation-octagon-fill"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-6 col-md-4">
+            <div class="stat-card">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <span class="text-muted small fw-semibold d-block mb-1">Laporan Saya</span>
+                  <h2 class="fw-bold text-success mb-0" id="guruStatLaporan">0</h2>
+                  <small class="text-muted">Catatan yang Anda input</small>
+                </div>
+                <div class="stat-icon bg-success-subtle text-success-emphasis">
+                  <i class="bi bi-file-earmark-check-fill"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <button type="button" class="btn btn-primary-action w-100 py-3 fs-6" onclick="openCatatPoinModal()">
+            <i class="bi bi-plus-circle-fill me-2"></i> + Catat Pelanggaran / Prestasi
+          </button>
+        </div>
+
+        <div class="content-card">
+          <div class="p-3 p-md-4 border-bottom">
+            <div class="row g-2 align-items-center">
+              <div class="col-12 col-md-4">
+                <h5 class="fw-bold text-dark mb-0">Daftar Siswa</h5>
+              </div>
+              <div class="col-12 col-sm-6 col-md-4">
+                <input type="text" id="guruSearchNama" class="form-control" placeholder="Cari nama siswa..." onkeyup="renderTabelGuru()">
+              </div>
+              <div class="col-12 col-sm-6 col-md-4">
+                <select id="guruFilterKelas" class="form-select" onchange="renderTabelGuru()">
+                  <option value="">Semua Kelas</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover table-stack mb-0">
+              <thead>
+                <tr>
+                  <th>Nama Siswa</th>
+                  <th>Kelas</th>
+                  <th>Poin</th>
+                  <th>SP</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="guruTabelSiswaBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW D: MENU ORANG TUA -->
+      <div id="viewOrtu" style="display: none;">
+        <div class="alert alert-info border-0 rounded-4 shadow-sm mb-4 d-flex align-items-center gap-3">
+          <i class="bi bi-house-heart-fill fs-3 text-primary"></i>
+          <div>
+            <h6 class="fw-bold mb-0">Portal Orang Tua / Wali Murid</h6>
+            <small>Anda terhubung untuk memantau perkembangan kedisiplinan putra/putri Anda secara real-time.</small>
+          </div>
+        </div>
+        <div id="ortuChildContainer"></div>
+      </div>
+
+      <!-- VIEW E: HALAMAN PENGATURAN -->
+      <div id="viewPengaturan" style="display: none;">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+          <div>
+            <h4 class="fw-bold text-dark mb-1"><i class="bi bi-gear-wide-connected text-primary me-2"></i>Halaman Pengaturan Sistem</h4>
+            <p class="text-muted small mb-0">Manajemen Data Pengguna (CRUD) & Konfigurasi Database SMKN 1 Kota Binjai</p>
+          </div>
+          <button type="button" class="btn btn-outline-dark btn-sm rounded-pill px-3" onclick="toggleSettingsView()">
+            <i class="bi bi-arrow-left me-1"></i> Kembali ke Dashboard
+          </button>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-12 col-lg-4">
+            <div class="content-card p-3 p-md-4">
+              <h5 class="fw-bold mb-3" id="formUserTitle">Tambah Akun Baru</h5>
+              <form id="formCrudUser" onsubmit="handleSaveUser(event)">
+                <input type="hidden" id="crudUserMode" value="add">
+                <input type="hidden" id="crudUserId" value="">
+
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Peran (Role)</label>
+                  <select class="form-select" id="crudUserRole" onchange="toggleOrtuChildSelect()" required>
+                    <option value="Murid">Murid</option>
+                    <option value="Guru">Guru / Wali Kelas</option>
+                    <option value="Ortu">Orang Tua (Ortu)</option>
+                    <option value="Guru_BK">Guru BK (Admin)</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Nama Lengkap & Gelar</label>
+                  <input type="text" class="form-control" id="crudUserNama" placeholder="Contoh: Samsudin, M.Pd" required>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Kelas / Jabatan Info</label>
+                  <input type="text" class="form-control" id="crudUserKelas" placeholder="Contoh: XI RPL 1 atau Wali Kelas XI RPL 1" required>
+                </div>
+
+                <div class="mb-3" id="ortuStudentLinkGroup" style="display: none;">
+                  <label class="form-label small fw-semibold">Hubungkan ke Siswa (Khusus Ortu)</label>
+                  <select class="form-select" id="crudUserTerkaitSiswa">
+                    <option value="">-- Pilih Putra/Putri --</option>
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label small fw-semibold">Kata Sandi</label>
+                  <input type="password" class="form-control" id="crudUserPassword" placeholder="Min. 6 karakter (kosongkan saat edit jika tidak diubah)" autocomplete="new-password">
+                </div>
+
+                <div class="d-flex gap-2">
+                  <button type="submit" class="btn btn-primary flex-grow-1 fw-semibold">
+                    <i class="bi bi-save me-1"></i> Simpan Akun
+                  </button>
+                  <button type="button" class="btn btn-light border" onclick="resetFormCrudUser()">Batal</button>
+                </div>
+              </form>
+
+              <hr class="my-4">
+              <div class="bg-light p-3 rounded-3 border">
+                <h6 class="fw-bold small mb-1"><i class="bi bi-database-check text-success me-1"></i>Setup Database Otomatis</h6>
+                <p class="text-muted small mb-2">Memastikan seluruh sheet (Users, Catatan_Poin, Konseling, Pengaturan_Sekolah) siap digunakan.</p>
+                <button type="button" class="btn btn-sm btn-outline-success w-100 fw-semibold mb-2" onclick="triggerAutoSetup()">
+                  Jalankan Verifikasi Database
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-semibold" id="btnSettingsConnModal" onclick="openConnectionModal()">
+                  <i class="bi bi-plug me-1"></i> Pengaturan Koneksi Google Sheets
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-8">
+            <div class="content-card">
+              <div class="p-3 p-md-4 border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0">Daftar Akun Terdaftar (Dropdown Login)</h5>
+                <span class="badge bg-primary rounded-pill" id="totalUsersBadge">0 Akun</span>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-hover table-stack mb-0">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Peran</th>
+                      <th>Nama Akun</th>
+                      <th>Kelas / Info</th>
+                      <th class="text-end">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="crudTabelUsersBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- MODAL 1: CATAT PELANGGARAN / PRESTASI -->
+  <div class="modal fade" id="modalCatatPoin" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header border-bottom-0 pb-0">
+          <h5 class="modal-title fw-bold text-dark">
+            <i class="bi bi-journal-plus text-primary me-2"></i>Catat Pelanggaran / Prestasi
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+        </div>
+        <form onsubmit="handleSimpanCatatanPoin(event)">
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Pilih Siswa</label>
+              <select class="form-select rounded-3" id="inputCatatanSiswa" required>
+                <option value="">-- Pilih Nama Siswa --</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Jenis Catatan</label>
+              <div class="row g-2">
+                <div class="col-6">
+                  <input type="radio" class="btn-check" name="jenisCatatan" id="radioPelanggaran" value="Pelanggaran" checked onchange="updateDefaultPoinInput()">
+                  <label class="btn btn-outline-danger w-100 rounded-3 fw-semibold" for="radioPelanggaran">
+                    <i class="bi bi-exclamation-circle me-1"></i> Pelanggaran (-)
+                  </label>
+                </div>
+                <div class="col-6">
+                  <input type="radio" class="btn-check" name="jenisCatatan" id="radioPrestasi" value="Prestasi" onchange="updateDefaultPoinInput()">
+                  <label class="btn btn-outline-success w-100 rounded-3 fw-semibold" for="radioPrestasi">
+                    <i class="bi bi-trophy me-1"></i> Prestasi (+)
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Bobot Poin</label>
+              <input type="number" class="form-control rounded-3" id="inputCatatanPoin" min="1" max="100" value="10" required>
+              <div class="form-text small">Poin akan otomatis mengurangi (pelanggaran) atau menambah (prestasi, maks 100).</div>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small fw-semibold">Keterangan / Detail Kejadian</label>
+              <textarea class="form-control rounded-3" id="inputCatatanKeterangan" rows="3"
+                        placeholder="Tuliskan keterangan pelanggaran atau prestasi siswa..." required></textarea>
+            </div>
+          </div>
+          <div class="modal-footer border-top-0 pt-0">
+            <button type="button" class="btn btn-light rounded-3" data-bs-dismiss="modal">Batal</button>
+            <button type="submit" class="btn btn-primary rounded-3 px-4 fw-semibold">Simpan Catatan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: PENGAJUAN KONSELING -->
+  <div class="modal fade" id="modalPengajuanKonseling" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header bg-primary text-white rounded-top-4">
+          <h5 class="modal-title fw-bold">
+            <i class="bi bi-chat-heart-fill me-2"></i>Pengajuan Konseling
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div id="daftarPengajuanKonselingContainer" class="d-flex flex-column gap-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: TINDAKAN GURU BK -->
+  <div class="modal fade" id="modalTindakanSiswa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Tindakan Pembinaan Siswa</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+        </div>
+        <form onsubmit="handleSimpanTindakan(event)">
+          <div class="modal-body">
+            <input type="hidden" id="tindakanIdSiswa">
+            <p class="mb-3">Siswa: <strong id="tindakanNamaSiswa" class="text-primary">-</strong></p>
+
+            <div class="mb-3">
+              <label class="form-label small fw-semibold">Status Skorsing</label>
+              <select class="form-select" id="tindakanStatusSkorsing">
+                <option value="Tidak">Tidak Diskors (Aktif Belajar)</option>
+                <option value="Ya">Sedang Diskors (Pembinaan Orang Tua)</option>
+              </select>
+            </div>
+
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="tindakanResetPoin">
+              <label class="form-check-label small" for="tindakanResetPoin">
+                Pulihkan poin siswa kembali ke <strong>100/100 (Aman)</strong> setelah pembinaan selesai
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Tutup</button>
+            <button type="submit" class="btn btn-primary fw-semibold">Simpan Tindakan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: PROFIL PENGGUNA -->
+  <div class="modal fade" id="modalProfil" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content rounded-4 border-0 shadow-lg text-center p-4">
+        <div class="bg-primary-subtle text-primary rounded-circle mx-auto d-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+          <i class="bi bi-person-badge fs-2"></i>
+        </div>
+        <h5 class="fw-bold mb-1" id="profilModalNama">-</h5>
+        <span class="badge bg-primary rounded-pill mb-2" id="profilModalRole">-</span>
+        <p class="text-muted small mb-3" id="profilModalInfo">-</p>
+        <div class="border-top pt-3 small text-muted">
+          SMKN 1 Kota Binjai<br>Jl. Samanhudi No.20, Binjai Kota
+        </div>
+        <form id="formUbahSandi" onsubmit="handleUbahSandi(event)" class="text-start border-top mt-3 pt-3">
+          <h6 class="fw-bold small mb-2">Ubah kata sandi</h6>
+          <input type="password" id="sandiLama" class="form-control form-control-sm mb-2" placeholder="Sandi lama" autocomplete="current-password" required>
+          <input type="password" id="sandiBaru" class="form-control form-control-sm mb-2" placeholder="Sandi baru (min. 6 karakter)" minlength="6" autocomplete="new-password" required>
+          <button type="submit" class="btn btn-primary btn-sm w-100">Simpan sandi baru</button>
+        </form>
+        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill mt-3" data-bs-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: KONEKSI DATABASE (GOOGLE SHEETS / LOKAL) -->
+  <div class="modal fade" id="modalKoneksi" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold"><i class="bi bi-plug-fill text-primary me-2"></i>Koneksi Database E-BK</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-3">
+            Website ini berjalan otomatis dalam <strong>Mode Lokal Browser</strong> bila URL Google Apps Script belum diisi.
+            Untuk menyimpan data ke <strong>Google Sheets</strong> secara terpusat, tempel URL Web App Apps Script (<code>/exec</code>) di bawah ini.
+          </p>
+          <div class="mb-3">
+            <label for="inputGasApiUrl" class="form-label small fw-semibold">URL Web App Google Apps Script</label>
+            <input type="url" class="form-control" id="inputGasApiUrl" placeholder="https://script.google.com/macros/s/.../exec">
+            <div class="form-text small">Kosongkan untuk kembali ke Mode Lokal Browser.</div>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary flex-grow-1 fw-semibold" onclick="saveConnectionConfig()">
+              <i class="bi bi-check2-circle me-1"></i> Simpan & Uji Koneksi
+            </button>
+            <button type="button" class="btn btn-outline-warning fw-semibold" onclick="resetLocalDemoData()">
+              <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Data Lokal
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // =========================================================================
+    // STATE MANAGEMENT GLOBAL
+    // =========================================================================
+    let allAccounts = [];
+    let selectedLoginRole = 'Murid';
+    let currentUser = null;
+    let appData = { users: [], students: [], catatan: [], konseling: [] };
+    let isSettingsOpen = false;
+    let isTabelBKExpanded = true;
+    let sessionToken = null;
+    let loadingTimer = null;
+    let configuredGasUrl = '';
+
+    const ROLES = ['Murid', 'Guru', 'Ortu', 'Guru_BK'];
+    const TOPIK = ['Pribadi & Sosial', 'Akademik & Belajar', 'Karir, PKL & Kuliah', 'Masalah Kedisiplinan'];
+    const SESSION_TTL_MS = 21600 * 1000; // 6 jam
+
+    // =========================================================================
+    // ADAPTER BACKEND: GAS NATIVE -> GAS WEB APP URL -> LOKAL BROWSER
+    // =========================================================================
+    function isNativeGas() {
+      return typeof window.google !== 'undefined' && window.google.script && window.google.script.run;
+    }
+
+    function getActiveBackendMode() {
+      if (isNativeGas()) return 'gas-native';
+      if (configuredGasUrl) return 'gas-remote';
+      return 'local';
+    }
+
+    function updateConnectionBadge() {
+      const badge = document.getElementById('connectionModeBadge');
+      const btnConn = document.getElementById('btnOpenConnModal');
+      const btnSetConn = document.getElementById('btnSettingsConnModal');
+      const mode = getActiveBackendMode();
+      if (mode === 'gas-native') {
+        badge.innerHTML = '<i class="bi bi-cloud-check-fill me-1 text-success"></i> Google Apps Script';
+        if (btnConn) btnConn.style.display = 'none';
+        if (btnSetConn) btnSetConn.style.display = 'none';
+      } else if (mode === 'gas-remote') {
+        badge.innerHTML = '<i class="bi bi-cloud-check-fill me-1 text-success"></i> Terhubung Google Sheets';
+        if (btnConn) btnConn.style.display = '';
+        if (btnSetConn) btnSetConn.style.display = '';
+      } else {
+        badge.innerHTML = '<i class="bi bi-hdd-stack me-1 text-primary"></i> Mode Lokal Browser';
+        if (btnConn) btnConn.style.display = '';
+        if (btnSetConn) btnSetConn.style.display = '';
+      }
+    }
+
+    async function callServer(action, ...args) {
+      const mode = getActiveBackendMode();
+      if (mode === 'gas-native') {
+        return new Promise((resolve, reject) => {
+          const runner = window.google.script.run
+            .withSuccessHandler(resolve)
+            .withFailureHandler(err => reject(new Error(err && err.message ? err.message : String(err))));
+          runner[action](...args);
+        });
+      }
+      if (mode === 'gas-remote') {
+        const res = await fetch(configuredGasUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action, args })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' dari server Google Apps Script.');
+        return await res.json();
+      }
+      return await LocalBackend.dispatch(action, args);
+    }
+
+    // =========================================================================
+    // BACKEND LOKAL BROWSER (PARITAS PENUH DENGAN Code.gs)
+    // =========================================================================
+    const LocalBackend = (() => {
+      const DB_KEY = 'ebk_smkn1_binjai_db_v1';
+
+      function formatJakarta(date, withTime) {
+        const parts = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Jakarta',
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false
+        }).formatToParts(date).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+        const d = `${parts.year}-${parts.month}-${parts.day}`;
+        return withTime ? `${d} ${parts.hour}:${parts.minute}` : d;
+      }
+
+      function hitungStatusSP(poin) {
+        const p = Number(poin);
+        if (p >= 85) return 'Aman';
+        if (p >= 70) return 'SP 1';
+        if (p >= 50) return 'SP 2';
+        return 'SP 3';
+      }
+
+      async function sha256Hex(text) {
+        if (window.crypto && window.crypto.subtle) {
+          const buf = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+          return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        // Fallback deterministik bila non-HTTPS (hanya untuk dev lokal)
+        let h = 2166136261;
+        for (let i = 0; i < text.length; i++) {
+          h ^= text.charCodeAt(i);
+          h = Math.imul(h, 16777619);
+        }
+        return ('00000000' + (h >>> 0).toString(16)).slice(-8);
+      }
+
+      async function hashPw(salt, pw) {
+        return 'h$' + await sha256Hex(salt + String(pw));
+      }
+
+      async function checkPw(salt, stored, input) {
+        const s = String(stored);
+        if (s.indexOf('h$') === 0) return s === await hashPw(salt, input);
+        return s === String(input);
+      }
+
+      function randomUuid() {
+        if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+        return 'tok-' + Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
+      }
+
+      async function createInitialDb() {
+        const salt = randomUuid();
+        const pw = await hashPw(salt, '123456');
+        const today = formatJakarta(new Date(), false);
+        const now = formatJakarta(new Date(), true);
+
+        return {
+          salt,
+          config: [
+            { Key: 'Nama_Sekolah', Value: 'SMKN 1 Kota Binjai' },
+            { Key: 'Alamat', Value: 'Jl. Samanhudi No.20, Satria, Kec. Binjai Kota, Kota Binjai, Sumatera Utara 20741' },
+            { Key: 'Tahun_Ajaran', Value: '2026/2027' }
+          ],
+          users: [
+            { id: 'BK01', role: 'Guru_BK', nama: 'Dra. Hj. Nurhayati, M.Psi (Guru BK)', password: pw, kelasInfo: 'Ruang BK Utama', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: '' },
+            { id: 'GR01', role: 'Guru', nama: 'Samsudin, M.Pd', password: pw, kelasInfo: 'Wali Kelas XI RPL 1', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: '' },
+            { id: 'GR02', role: 'Guru', nama: 'Rina Marlina, S.Kom', password: pw, kelasInfo: 'Wali Kelas XI TKJ 1', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: '' },
+            { id: 'GR03', role: 'Guru', nama: 'Budi Santoso, S.Pd', password: pw, kelasInfo: 'Guru Produktif AKL', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: '' },
+            { id: 'SW01', role: 'Murid', nama: 'Aminah', password: pw, kelasInfo: 'XI RPL 1', poin: 100, statusSP: 'Aman', skorsing: 'Tidak', terkaitIdSiswa: '' },
+            { id: 'SW02', role: 'Murid', nama: 'Muhammad Rizky Pratama', password: pw, kelasInfo: 'XI RPL 1', poin: 80, statusSP: 'SP 1', skorsing: 'Tidak', terkaitIdSiswa: '' },
+            { id: 'SW03', role: 'Murid', nama: 'Siti Aisyah Putri', password: pw, kelasInfo: 'XI RPL 1', poin: 100, statusSP: 'Aman', skorsing: 'Tidak', terkaitIdSiswa: '' },
+            { id: 'SW04', role: 'Murid', nama: 'Dimas Anggara', password: pw, kelasInfo: 'XI TKJ 1', poin: 60, statusSP: 'SP 2', skorsing: 'Tidak', terkaitIdSiswa: '' },
+            { id: 'SW05', role: 'Murid', nama: 'Nabila Syakieb', password: pw, kelasInfo: 'XI TKJ 1', poin: 95, statusSP: 'Aman', skorsing: 'Tidak', terkaitIdSiswa: '' },
+            { id: 'SW06', role: 'Murid', nama: 'Fajar Nugroho', password: pw, kelasInfo: 'XII AKL 2', poin: 35, statusSP: 'SP 3', skorsing: 'Ya', terkaitIdSiswa: '' },
+            { id: 'OT01', role: 'Ortu', nama: 'Bpk. Ahmad (Wali dari Aminah)', password: pw, kelasInfo: 'Ortu XI RPL 1', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: 'SW01' },
+            { id: 'OT02', role: 'Ortu', nama: 'Ibu Siti (Wali dari M. Rizky)', password: pw, kelasInfo: 'Ortu XI RPL 1', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: 'SW02' },
+            { id: 'OT03', role: 'Ortu', nama: 'Bpk. Hendra (Wali dari Dimas)', password: pw, kelasInfo: 'Ortu XI TKJ 1', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: 'SW04' }
+          ],
+          catatan: [
+            { id: 'CT-1001', tanggal: today, idSiswa: 'SW01', namaSiswa: 'Aminah', kelas: 'XI RPL 1', jenis: 'Prestasi', keterangan: 'Juara 1 LKS Web Technologies Tingkat Kota Binjai', perubahanPoin: 15, pelapor: 'Samsudin, M.Pd' },
+            { id: 'CT-1002', tanggal: today, idSiswa: 'SW01', namaSiswa: 'Aminah', kelas: 'XI RPL 1', jenis: 'Pelanggaran', keterangan: 'Terlambat mengikuti apel pagi (15 menit)', perubahanPoin: -15, pelapor: 'Dra. Hj. Nurhayati, M.Psi (Guru BK)' },
+            { id: 'CT-1003', tanggal: today, idSiswa: 'SW02', namaSiswa: 'Muhammad Rizky Pratama', kelas: 'XI RPL 1', jenis: 'Pelanggaran', keterangan: 'Tidak memakai atribut dasi dan topi saat upacara', perubahanPoin: -20, pelapor: 'Samsudin, M.Pd' },
+            { id: 'CT-1004', tanggal: today, idSiswa: 'SW04', namaSiswa: 'Dimas Anggara', kelas: 'XI TKJ 1', jenis: 'Pelanggaran', keterangan: 'Bolos pada jam pelajaran ke-5 dan ke-6', perubahanPoin: -40, pelapor: 'Rina Marlina, S.Kom' },
+            { id: 'CT-1005', tanggal: today, idSiswa: 'SW06', namaSiswa: 'Fajar Nugroho', kelas: 'XII AKL 2', jenis: 'Pelanggaran', keterangan: 'Terlibat perkelahian di area parkir sekolah', perubahanPoin: -65, pelapor: 'Dra. Hj. Nurhayati, M.Psi (Guru BK)' }
+          ],
+          konseling: [
+            { id: 'KS-2001', tanggal: now, idSiswa: 'SW01', namaSiswa: 'Aminah', kelas: 'XI RPL 1', topik: 'Karir, PKL & Kuliah', cerita: 'Ingin cerita sedikit mengenai kebingungan memilih tempat PKL dan persiapan kuliah.', status: 'Menunggu', jadwal: '-', catatanBK: '-' }
+          ],
+          sessions: {},
+          loginFails: {}
+        };
+      }
+
+      async function loadDb() {
+        const raw = localStorage.getItem(DB_KEY);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.users) && Array.isArray(parsed.catatan) && Array.isArray(parsed.konseling)) {
+              parsed.sessions = parsed.sessions || {};
+              parsed.loginFails = parsed.loginFails || {};
+              return parsed;
+            }
+          } catch (e) {}
+        }
+        const fresh = await createInitialDb();
+        saveDb(fresh);
+        return fresh;
+      }
+
+      function saveDb(db) {
+        localStorage.setItem(DB_KEY, JSON.stringify(db));
+      }
+
+      function pub(u) {
+        return { id: u.id, role: u.role, nama: u.nama, kelasInfo: u.kelasInfo, poin: Number(u.poin), statusSP: u.statusSP, skorsing: u.skorsing, terkaitIdSiswa: u.terkaitIdSiswa || '' };
+      }
+
+      function nextId(items, prefix, start, pad) {
+        let max = start - 1;
+        items.forEach(item => {
+          const s = String(item.id || '');
+          if (s.indexOf(prefix) === 0) {
+            const n = parseInt(s.slice(prefix.length), 10);
+            if (n > max) max = n;
+          }
+        });
+        const n = String(max + 1);
+        return prefix + (pad ? ('0000' + n).slice(-Math.max(pad, n.length)) : n);
+      }
+
+      function requireSession(db, token, roles) {
+        const now = Date.now();
+        const sess = token && db.sessions[token];
+        if (!sess || sess.exp <= now) {
+          if (token && db.sessions[token]) { delete db.sessions[token]; saveDb(db); }
+          const err = new Error('Sesi berakhir. Silakan masuk kembali.');
+          err.expired = true;
+          throw err;
+        }
+        const u = db.users.find(x => x.id === sess.userId);
+        if (!u) {
+          const err = new Error('Sesi berakhir. Silakan masuk kembali.');
+          err.expired = true;
+          throw err;
+        }
+        if (roles && roles.indexOf(u.role) < 0) {
+          throw new Error('Anda tidak memiliki akses untuk tindakan ini.');
+        }
+        return u;
+      }
+
+      async function reset() {
+        const fresh = await createInitialDb();
+        saveDb(fresh);
+        return { success: true, message: 'Data lokal berhasil direset ke data contoh awal.' };
+      }
+
+      async function dispatch(action, args) {
+        try {
+          const db = await loadDb();
+
+          if (action === 'getLoginAccounts') {
+            return { success: true, data: db.users.map(u => ({ id: u.id, role: u.role, nama: u.nama, kelasInfo: u.kelasInfo })) };
+          }
+
+          if (action === 'loginUser') {
+            const userId = String(args[0] || '');
+            const password = String(args[1] || '');
+            const now = Date.now();
+            const failInfo = db.loginFails[userId];
+            if (failInfo && failInfo.exp > now && failInfo.count >= 5) {
+              return { success: false, message: 'Terlalu banyak percobaan. Coba lagi dalam 10 menit.' };
+            }
+            const u = db.users.find(x => x.id === userId);
+            if (!u) return { success: false, message: 'Akun tidak ditemukan!' };
+
+            const ok = await checkPw(db.salt, u.password, password);
+            if (!ok) {
+              const count = (failInfo && failInfo.exp > now) ? failInfo.count + 1 : 1;
+              db.loginFails[userId] = { count, exp: now + 600000 };
+              saveDb(db);
+              return { success: false, message: 'Kata sandi yang Anda masukkan salah!' };
+            }
+
+            delete db.loginFails[userId];
+            if (String(u.password).indexOf('h$') !== 0) {
+              u.password = await hashPw(db.salt, password);
+            }
+            const token = randomUuid();
+            db.sessions[token] = { userId: u.id, exp: now + SESSION_TTL_MS };
+            saveDb(db);
+            return { success: true, token, user: pub(u) };
+          }
+
+          if (action === 'akhiriSesi') {
+            const token = args[0];
+            if (token && db.sessions[token]) {
+              delete db.sessions[token];
+              saveDb(db);
+            }
+            return { success: true };
+          }
+
+          if (action === 'ubahSandi') {
+            const [token, lama, baru] = args;
+            const me = requireSession(db, token);
+            if (!(await checkPw(db.salt, me.password, lama))) throw new Error('Sandi lama salah.');
+            if (String(baru || '').length < 6) throw new Error('Sandi baru minimal 6 karakter.');
+            me.password = await hashPw(db.salt, baru);
+            saveDb(db);
+            return { success: true, message: 'Sandi berhasil diubah.' };
+          }
+
+          if (action === 'jalankanSetup') {
+            requireSession(db, args[0], ['Guru_BK']);
+            saveDb(db);
+            return { success: true, message: 'Struktur database lokal sudah lengkap.' };
+          }
+
+          if (action === 'getAllAppData') {
+            const me = requireSession(db, args[0]);
+            let students = db.users.filter(u => u.role === 'Murid');
+            let catatan = db.catatan.slice();
+            let konseling = db.konseling.slice();
+            let users = [];
+
+            if (me.role === 'Guru_BK') {
+              users = db.users.map(pub);
+            } else if (me.role === 'Guru') {
+              catatan = catatan.filter(c => c.pelapor === me.nama);
+              konseling = [];
+            } else {
+              const sid = me.role === 'Murid' ? me.id : me.terkaitIdSiswa;
+              students = students.filter(s => s.id === sid);
+              catatan = catatan.filter(c => c.idSiswa === sid);
+              konseling = konseling.filter(k => k.idSiswa === sid);
+              if (me.role === 'Ortu') {
+                konseling = konseling.map(k => Object.assign({}, k, { cerita: '(Isi cerita bersifat rahasia)' }));
+              }
+            }
+
+            return {
+              success: true,
+              me: pub(me),
+              users,
+              students: students.map(pub),
+              catatan: catatan.reverse(),
+              konseling: konseling.reverse()
+            };
+          }
+
+          if (action === 'tambahCatatanPoin') {
+            const me = requireSession(db, args[0], ['Guru_BK', 'Guru']);
+            const p = args[1] || {};
+            if (['Pelanggaran', 'Prestasi'].indexOf(p.jenis) < 0) throw new Error('Jenis catatan tidak valid.');
+            const bobot = Math.round(Number(p.poin));
+            if (!(bobot >= 1 && bobot <= 100)) throw new Error('Bobot poin harus 1 sampai 100.');
+            const ket = String(p.keterangan || '').trim().slice(0, 300);
+            if (!ket) throw new Error('Keterangan wajib diisi.');
+            const s = db.users.find(u => u.id === String(p.idSiswa) && u.role === 'Murid');
+            if (!s) throw new Error('Data siswa tidak ditemukan!');
+
+            const baru = Math.max(0, Math.min(100, Number(s.poin) + (p.jenis === 'Prestasi' ? bobot : -bobot)));
+            const delta = baru - Number(s.poin);
+            const status = hitungStatusSP(baru);
+            const prevStatus = s.statusSP;
+
+            db.catatan.push({
+              id: nextId(db.catatan, 'CT-', 1001),
+              tanggal: formatJakarta(new Date(), false),
+              idSiswa: s.id,
+              namaSiswa: s.nama,
+              kelas: s.kelasInfo,
+              jenis: p.jenis,
+              keterangan: ket,
+              perubahanPoin: delta,
+              pelapor: me.nama
+            });
+            s.poin = baru;
+            s.statusSP = status;
+            saveDb(db);
+
+            let msg = `Catatan ${p.jenis} untuk ${s.nama} disimpan. Poin kini ${baru}/100 (${status}).`;
+            if (status !== 'Aman' && status !== prevStatus) msg += ` Status berubah dari ${prevStatus}.`;
+            return { success: true, message: msg };
+          }
+
+          if (action === 'updateTindakanSiswa') {
+            const me = requireSession(db, args[0], ['Guru_BK']);
+            const [, idSiswa, skorsing, resetPoin] = args;
+            if (['Ya', 'Tidak'].indexOf(skorsing) < 0) throw new Error('Status skorsing tidak valid.');
+            const s = db.users.find(u => u.id === String(idSiswa) && u.role === 'Murid');
+            if (!s) throw new Error('Siswa tidak ditemukan.');
+            s.skorsing = skorsing;
+            if (resetPoin && Number(s.poin) < 100) {
+              const delta = 100 - Number(s.poin);
+              s.poin = 100;
+              s.statusSP = 'Aman';
+              db.catatan.push({
+                id: nextId(db.catatan, 'CT-', 1001),
+                tanggal: formatJakarta(new Date(), false),
+                idSiswa: s.id,
+                namaSiswa: s.nama,
+                kelas: s.kelasInfo,
+                jenis: 'Pemulihan',
+                keterangan: 'Poin dipulihkan setelah pembinaan selesai',
+                perubahanPoin: delta,
+                pelapor: me.nama
+              });
+            }
+            saveDb(db);
+            return { success: true, message: 'Status tindakan siswa berhasil diperbarui.' };
+          }
+
+          if (action === 'ajukanKonseling') {
+            const me = requireSession(db, args[0], ['Murid']);
+            const p = args[1] || {};
+            const cerita = String(p.cerita || '').trim().slice(0, 500);
+            if (!cerita) throw new Error('Cerita singkat wajib diisi.');
+            if (TOPIK.indexOf(p.topik) < 0) throw new Error('Topik tidak valid.');
+            const menunggu = db.konseling.filter(k => k.idSiswa === me.id && k.status === 'Menunggu').length;
+            if (menunggu >= 3) throw new Error('Anda masih punya 3 pengajuan yang menunggu. Tunggu jawaban Guru BK dulu.');
+
+            db.konseling.push({
+              id: nextId(db.konseling, 'KS-', 2001),
+              tanggal: formatJakarta(new Date(), true),
+              idSiswa: me.id,
+              namaSiswa: me.nama,
+              kelas: me.kelasInfo,
+              topik: p.topik,
+              cerita,
+              status: 'Menunggu',
+              jadwal: '-',
+              catatanBK: '-'
+            });
+            saveDb(db);
+            return { success: true, message: 'Pengajuan konseling terkirim. Menunggu persetujuan Guru BK.' };
+          }
+
+          if (action === 'setujuiKonseling') {
+            requireSession(db, args[0], ['Guru_BK']);
+            const [, id, jadwalRaw, catatanBK] = args;
+            const jadwal = String(jadwalRaw || '').trim().slice(0, 100);
+            if (!jadwal) throw new Error('Jadwal wajib diisi.');
+            const k = db.konseling.find(x => x.id === String(id));
+            if (!k) throw new Error('Pengajuan tidak ditemukan.');
+            if (k.status !== 'Menunggu') throw new Error('Pengajuan ini sudah diproses.');
+            k.status = 'Disetujui & Terjadwal';
+            k.jadwal = jadwal;
+            k.catatanBK = String(catatanBK || '').trim().slice(0, 200) || 'Silakan hadir tepat waktu di Ruang BK.';
+            saveDb(db);
+            return { success: true, message: 'Konseling disetujui dan jadwal sudah tampil di akun siswa.' };
+          }
+
+          if (action === 'tolakKonseling') {
+            requireSession(db, args[0], ['Guru_BK']);
+            const [, id, alasan] = args;
+            const k = db.konseling.find(x => x.id === String(id));
+            if (!k) throw new Error('Pengajuan tidak ditemukan.');
+            if (k.status !== 'Menunggu') throw new Error('Pengajuan ini sudah diproses.');
+            k.status = 'Ditolak';
+            k.catatanBK = String(alasan || '').trim().slice(0, 200) || 'Silakan ajukan ulang atau temui Guru BK.';
+            saveDb(db);
+            return { success: true, message: 'Pengajuan ditolak dan alasan sudah dikirim ke siswa.' };
+          }
+
+          if (action === 'saveUserAccount') {
+            const me = requireSession(db, args[0], ['Guru_BK']);
+            const p = args[1] || {};
+            const nama = String(p.nama || '').trim().slice(0, 100);
+            const kelasInfo = String(p.kelasInfo || '').trim().slice(0, 100);
+            if (ROLES.indexOf(p.role) < 0) throw new Error('Peran tidak valid.');
+            if (!nama || !kelasInfo) throw new Error('Nama dan kelas/info wajib diisi.');
+
+            let terkait = '';
+            if (p.role === 'Ortu') {
+              terkait = String(p.terkaitIdSiswa || '');
+              if (!db.users.some(u => u.id === terkait && u.role === 'Murid')) {
+                throw new Error('Akun orang tua harus dihubungkan ke siswa yang valid.');
+              }
+            }
+
+            if (p.mode === 'add') {
+              if (String(p.password || '').length < 6) throw new Error('Sandi minimal 6 karakter.');
+              const prefix = { Murid: 'SW', Guru: 'GR', Ortu: 'OT', Guru_BK: 'BK' }[p.role];
+              const newId = nextId(db.users, prefix, 1, 2);
+              db.users.push({
+                id: newId,
+                role: p.role,
+                nama,
+                password: await hashPw(db.salt, p.password),
+                kelasInfo,
+                poin: 100,
+                statusSP: p.role === 'Murid' ? 'Aman' : '-',
+                skorsing: 'Tidak',
+                terkaitIdSiswa: terkait
+              });
+              saveDb(db);
+              return { success: true, message: `Akun ${nama} berhasil ditambahkan.` };
+            }
+
+            if (p.mode === 'edit') {
+              const u = db.users.find(x => x.id === String(p.id));
+              if (!u) throw new Error('Akun tidak ditemukan.');
+              if (u.id === me.id && p.role !== 'Guru_BK') throw new Error('Anda tidak bisa mengubah peran akun Anda sendiri.');
+              if (u.role !== p.role) throw new Error('Peran akun tidak bisa diubah. Buat akun baru jika perlu.');
+              u.nama = nama;
+              u.kelasInfo = kelasInfo;
+              u.terkaitIdSiswa = terkait;
+              if (p.password) {
+                if (String(p.password).length < 6) throw new Error('Sandi minimal 6 karakter.');
+                u.password = await hashPw(db.salt, p.password);
+              }
+              saveDb(db);
+              return { success: true, message: `Data akun ${nama} diperbarui.` };
+            }
+
+            throw new Error('Mode tidak dikenal.');
+          }
+
+          if (action === 'deleteUserAccount') {
+            const me = requireSession(db, args[0], ['Guru_BK']);
+            const userId = String(args[1] || '');
+            const idx = db.users.findIndex(x => x.id === userId);
+            if (idx < 0) throw new Error('Akun tidak ditemukan.');
+            const u = db.users[idx];
+            if (u.id === me.id) throw new Error('Anda tidak bisa menghapus akun Anda sendiri.');
+            if (u.role === 'Guru_BK' && db.users.filter(x => x.role === 'Guru_BK').length <= 1) {
+              throw new Error('Minimal harus ada satu akun Guru BK.');
+            }
+            if (u.role === 'Murid' && db.users.some(x => x.role === 'Ortu' && x.terkaitIdSiswa === u.id)) {
+              throw new Error('Hapus atau pindahkan akun orang tua yang terhubung ke siswa ini lebih dulu.');
+            }
+            db.users.splice(idx, 1);
+            saveDb(db);
+            return { success: true, message: `Akun ${u.nama} dihapus. Riwayat catatan tetap tersimpan.` };
+          }
+
+          throw new Error('Aksi tidak dikenal.');
+        } catch (e) {
+          return { success: false, expired: !!(e && e.expired), message: (e && e.message) ? e.message : String(e) };
+        }
+      }
+
+      return { dispatch, reset };
+    })();
+
+    // =========================================================================
+    // UTILITAS UI & KEAMANAN
+    // =========================================================================
+    function esc(v) {
+      return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+
+    function togglePw() {
+      const i = document.getElementById('loginPassword');
+      const show = i.type === 'password';
+      i.type = show ? 'text' : 'password';
+      document.querySelector('#btnTogglePw i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+    }
+
+    function forceLogout() {
+      currentUser = null;
+      sessionToken = null;
+      isSettingsOpen = false;
+      isTabelBKExpanded = true;
+      document.getElementById('mainAppSection').style.display = 'none';
+      document.getElementById('loginSection').style.display = 'flex';
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('formAjukanKonseling').parentElement.style.display = '';
+      hideLoading();
+      loadLoginAccounts();
+    }
+
+    function labelCells(tbody) {
+      const table = tbody.closest('table');
+      if (!table) return;
+      const heads = [...table.querySelectorAll('thead th')].map(t => t.textContent.trim());
+      tbody.querySelectorAll('tr').forEach(tr => [...tr.children].forEach((td, i) => {
+        if (!td.colSpan || td.colSpan < 2) td.dataset.label = heads[i] || '';
+      }));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      ['bkTabelSiswaBody', 'muridTabelRiwayat', 'guruTabelSiswaBody', 'crudTabelUsersBody'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) new MutationObserver(() => labelCells(el)).observe(el, { childList: true });
+      });
+    });
+
+    function showLoading(text = 'Memproses data...') {
+      document.getElementById('loadingText').innerText = text;
+      document.getElementById('loadingOverlay').style.display = 'flex';
+      clearTimeout(loadingTimer);
+      loadingTimer = setTimeout(() => {
+        hideLoading();
+        showToast('Server tidak merespons. Coba lagi.', 'error');
+      }, 30000);
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').style.display = 'none';
+      clearTimeout(loadingTimer);
+    }
+
+    function showToast(message, type = 'success') {
+      if (/Sesi berakhir/.test(message) && sessionToken) { forceLogout(); }
+      const toastEl = document.getElementById('appToast');
+      const toastBody = document.getElementById('toastMessage');
+      toastEl.className = `toast align-items-center text-white border-0 shadow-lg bg-${type === 'error' ? 'danger' : (type === 'warning' ? 'warning text-dark' : 'success')}`;
+      toastBody.innerText = message;
+      const toast = new bootstrap.Toast(toastEl, { delay: 3500 });
+      toast.show();
+    }
+
+    function getSPBadgeClass(statusSP) {
+      if (statusSP === 'Aman') return 'badge-sp-aman';
+      if (statusSP === 'SP 1') return 'badge-sp-1';
+      if (statusSP === 'SP 2') return 'badge-sp-2';
+      return 'badge-sp-3';
+    }
+
+    // =========================================================================
+    // INISIALISASI KONEKSI & HALAMAN LOGIN
+    // =========================================================================
+    async function initApp() {
+      if (!isNativeGas()) {
+        const urlParam = new URLSearchParams(window.location.search).get('api');
+        if (urlParam) {
+          configuredGasUrl = urlParam.trim();
+          localStorage.setItem('ebk_gas_api_url', configuredGasUrl);
+        } else {
+          configuredGasUrl = (localStorage.getItem('ebk_gas_api_url') || '').trim();
+        }
+        if (!configuredGasUrl) {
+          try {
+            const cfgRes = await fetch('./config.json', { cache: 'no-store' });
+            if (cfgRes.ok) {
+              const cfg = await cfgRes.json();
+              if (cfg && cfg.gasApiUrl) configuredGasUrl = String(cfg.gasApiUrl).trim();
+            }
+          } catch (e) {}
+        }
+      }
+      updateConnectionBadge();
+      loadLoginAccounts();
+    }
+
+    window.onload = initApp;
+
+    function openConnectionModal() {
+      document.getElementById('inputGasApiUrl').value = configuredGasUrl;
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('modalKoneksi')).show();
+    }
+
+    async function saveConnectionConfig() {
+      const url = document.getElementById('inputGasApiUrl').value.trim();
+      if (!url) {
+        configuredGasUrl = '';
+        localStorage.removeItem('ebk_gas_api_url');
+        updateConnectionBadge();
+        bootstrap.Modal.getInstance(document.getElementById('modalKoneksi')).hide();
+        showToast('Beralih ke Mode Lokal Browser.');
+        if (sessionToken) forceLogout();
+        else loadLoginAccounts();
+        return;
+      }
+
+      if (!/^https:\/\/script\.google\.com\//i.test(url)) {
+        showToast('URL harus berasal dari https://script.google.com/.../exec', 'warning');
+        return;
+      }
+
+      showLoading('Menguji koneksi ke Google Apps Script...');
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'ping', args: [] })
+        });
+        const data = await res.json();
+        hideLoading();
+        if (!data || !data.success) throw new Error((data && data.message) || 'Respon server tidak valid.');
+
+        configuredGasUrl = url;
+        localStorage.setItem('ebk_gas_api_url', url);
+        updateConnectionBadge();
+        bootstrap.Modal.getInstance(document.getElementById('modalKoneksi')).hide();
+        showToast(data.message || 'Berhasil terhubung ke Google Sheets!');
+        if (sessionToken) forceLogout();
+        else loadLoginAccounts();
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal terhubung ke URL Apps Script: ' + err.message, 'error');
+      }
+    }
+
+    async function resetLocalDemoData() {
+      if (!confirm('Reset seluruh data lokal di browser ini kembali ke data awal?')) return;
+      const res = await LocalBackend.reset();
+      bootstrap.Modal.getInstance(document.getElementById('modalKoneksi')).hide();
+      showToast(res.message);
+      if (sessionToken) forceLogout();
+      else loadLoginAccounts();
+    }
+
+    async function loadLoginAccounts() {
+      showLoading('Menghubungkan ke Database SMKN 1 Kota Binjai...');
+      try {
+        const res = await callServer('getLoginAccounts');
+        hideLoading();
+        if (res.success) {
+          allAccounts = res.data;
+          populateLoginDropdown();
+        } else {
+          showToast(res.message, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal memuat akun: ' + err.message, 'error');
+      }
+    }
+
+    function selectLoginRole(role, btnEl) {
+      selectedLoginRole = role;
+      document.querySelectorAll('.role-tab-btn').forEach(b => b.classList.remove('active'));
+      btnEl.classList.add('active');
+      const labelMap = { Murid: 'Murid', Guru: 'Guru / Wali Kelas', Ortu: 'Orang Tua', Guru_BK: 'Guru BK' };
+      document.getElementById('selectedRoleLabel').innerText = labelMap[role] || role;
+      populateLoginDropdown();
+    }
+
+    function populateLoginDropdown() {
+      const select = document.getElementById('loginAccountSelect');
+      const filtered = allAccounts.filter(acc => acc.role === selectedLoginRole);
+      select.innerHTML = '';
+      if (filtered.length === 0) {
+        select.innerHTML = '<option value="">-- Tidak ada akun pada peran ini --</option>';
+        return;
+      }
+      filtered.forEach(acc => {
+        const opt = document.createElement('option');
+        opt.value = acc.id;
+        opt.textContent = `${acc.nama} (${acc.kelasInfo})`;
+        select.appendChild(opt);
+      });
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const userId = document.getElementById('loginAccountSelect').value;
+      const password = document.getElementById('loginPassword').value;
+      if (!userId) {
+        showToast('Silakan pilih akun terlebih dahulu!', 'warning');
+        return;
+      }
+
+      showLoading('Memverifikasi kredensial...');
+      try {
+        const res = await callServer('loginUser', userId, password);
+        if (res.success) {
+          currentUser = res.user;
+          sessionToken = res.token;
+          showToast(`Selamat datang, ${currentUser.nama}!`);
+          enterMainApplication();
+        } else {
+          hideLoading();
+          showToast(res.message, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        showToast('Kesalahan login: ' + err.message, 'error');
+      }
+    }
+
+    function enterMainApplication() {
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('mainAppSection').style.display = 'block';
+      document.getElementById('navUserName').innerText = currentUser.nama.split(',')[0];
+      document.getElementById('navRoleText').innerText = currentUser.role.replace('_', ' ') + ' • SMKN 1 Kota Binjai';
+      document.getElementById('btnNavSettings').style.display = currentUser.role === 'Guru_BK' ? 'inline-block' : 'none';
+      refreshAllData();
+    }
+
+    function logoutUser() {
+      if (sessionToken) {
+        callServer('akhiriSesi', sessionToken).catch(() => {});
+      }
+      currentUser = null;
+      sessionToken = null;
+      isSettingsOpen = false;
+      isTabelBKExpanded = true;
+      document.getElementById('loginPassword').value = '';
+      document.getElementById('bkSearchKelasInput').value = '';
+      document.getElementById('guruSearchNama').value = '';
+      document.getElementById('formAjukanKonseling').parentElement.style.display = '';
+      document.getElementById('mainAppSection').style.display = 'none';
+      document.getElementById('loginSection').style.display = 'flex';
+      loadLoginAccounts();
+      showToast('Anda telah keluar dari sistem.');
+    }
+
+    // =========================================================================
+    // 2. SINKRONISASI DATA TERPUSAT
+    // =========================================================================
+    async function refreshAllData() {
+      showLoading('Menyinkronkan data...');
+      try {
+        const res = await callServer('getAllAppData', sessionToken);
+        hideLoading();
+        if (res.success) {
+          appData = res;
+          currentUser = res.me;
+          populateStudentSelectOptions();
+          renderActiveRoleView();
+        } else {
+          showToast(res.message, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal menyinkronkan data: ' + err.message, 'error');
+      }
+    }
+
+    function renderActiveRoleView() {
+      ['viewGuruBK', 'viewMurid', 'viewGuru', 'viewOrtu', 'viewPengaturan'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+      });
+
+      if (isSettingsOpen && currentUser.role === 'Guru_BK') {
+        document.getElementById('viewPengaturan').style.display = 'block';
+        renderSettingsView();
+        return;
+      }
+
+      if (currentUser.role === 'Guru_BK') {
+        document.getElementById('viewGuruBK').style.display = 'block';
+        renderDashboardGuruBK();
+      } else if (currentUser.role === 'Murid') {
+        document.getElementById('viewMurid').style.display = 'block';
+        document.getElementById('formAjukanKonseling').parentElement.style.display = '';
+        renderDashboardMurid(currentUser.id);
+      } else if (currentUser.role === 'Guru') {
+        document.getElementById('viewGuru').style.display = 'block';
+        renderDashboardGuru();
+      } else if (currentUser.role === 'Ortu') {
+        document.getElementById('viewOrtu').style.display = 'block';
+        renderDashboardOrtu();
+      }
+    }
+
+    // =========================================================================
+    // 3. DASHBOARD GURU BK
+    // =========================================================================
+    function renderDashboardGuruBK() {
+      const students = appData.students;
+      const uniqueClasses = [...new Set(students.map(s => s.kelasInfo))];
+      document.getElementById('statLokalSiswa').innerText = students.length;
+      document.getElementById('statJumlahKelas').innerText = `${uniqueClasses.length} Kelas Terdaftar`;
+
+      const spCount = students.filter(s => s.statusSP !== 'Aman').length;
+      document.getElementById('statKasusSP').innerText = spCount;
+
+      const pendingKonseling = appData.konseling.filter(k => k.status === 'Menunggu');
+      document.getElementById('statKonseling').innerText = pendingKonseling.length;
+      document.getElementById('ovalKonselingCount').innerText = pendingKonseling.length;
+
+      const skorsingCount = students.filter(s => s.skorsing === 'Ya').length;
+      document.getElementById('statSkorsing').innerText = skorsingCount;
+
+      renderTabelSiswaBK();
+    }
+
+    function renderTabelSiswaBK() {
+      const keyword = document.getElementById('bkSearchKelasInput').value.toLowerCase().trim();
+      const tbody = document.getElementById('bkTabelSiswaBody');
+      const filtered = appData.students.filter(s =>
+        s.kelasInfo.toLowerCase().includes(keyword) || s.nama.toLowerCase().includes(keyword)
+      );
+
+      tbody.innerHTML = '';
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-muted">Tidak ada siswa yang cocok dengan filter kelas "${esc(keyword)}".</td></tr>`;
+      } else {
+        filtered.forEach(s => {
+          const ketText = s.skorsing === 'Ya'
+            ? '<span class="text-danger fw-semibold">Sedang Diskors</span>'
+            : (s.statusSP === 'Aman' ? 'Normal' : 'Dalam Pembinaan BK');
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td class="fw-semibold text-dark">${esc(s.nama)}</td>
+            <td><span class="badge bg-light text-dark border">${esc(s.kelasInfo)}</span></td>
+            <td><span class="poin-chip ${s.poin >= 85 ? 'poin-ok' : (s.poin >= 70 ? 'poin-warn' : 'poin-bad')}">${esc(s.poin)}/100</span></td>
+            <td><span class="badge ${getSPBadgeClass(s.statusSP)} rounded-pill px-2 py-1">${esc(s.statusSP)}</span></td>
+            <td>
+              <span class="badge ${s.statusSP === 'Aman' ? 'bg-success-subtle text-success-emphasis' : 'bg-warning-subtle text-warning-emphasis'}">
+                ${s.statusSP === 'Aman' ? 'aman' : 'perhatian'}
+              </span>
+            </td>
+            <td class="small text-muted">${ketText}</td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                      onclick="openTindakanModal('${esc(s.id)}')">
+                Tindakan
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      document.getElementById('bkTotalSummaryText').innerHTML = `Total ditampilkan: <strong>${filtered.length} dari ${appData.students.length} Siswa</strong>`;
+    }
+
+    function toggleTabelBK() {
+      const wrapper = document.getElementById('bkTableWrapper');
+      const btn = document.getElementById('btnToggleTabelBK');
+      isTabelBKExpanded = !isTabelBKExpanded;
+      wrapper.style.display = isTabelBKExpanded ? 'block' : 'none';
+      btn.innerHTML = isTabelBKExpanded
+        ? '<i class="bi bi-chevron-up me-1"></i> Tutup / Total'
+        : '<i class="bi bi-chevron-down me-1"></i> Buka Daftar Siswa';
+    }
+
+    function openKonselingListModal() {
+      const container = document.getElementById('daftarPengajuanKonselingContainer');
+      container.innerHTML = '';
+
+      if (appData.konseling.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted py-4">Belum ada pengajuan konseling dari siswa.</div>';
+      } else {
+        appData.konseling.forEach(item => {
+          const isPending = item.status === 'Menunggu';
+          const card = document.createElement('div');
+          card.className = `p-3 rounded-4 border ${isPending ? 'bg-info-subtle border-info' : 'bg-light'}`;
+
+          card.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <h6 class="fw-bold mb-0 text-dark">${esc(item.namaSiswa)} <span class="badge bg-white text-dark border ms-1">${esc(item.kelas)}</span></h6>
+                <small class="text-muted">Topik: <strong>${esc(item.topik)}</strong> • ${esc(item.tanggal)}</small>
+              </div>
+              <span class="badge ${isPending ? 'bg-warning text-dark' : (item.status === 'Ditolak' ? 'bg-secondary' : 'bg-success')} rounded-pill px-3">
+                ${esc(item.status)}
+              </span>
+            </div>
+            <p class="bg-white p-3 rounded-3 border mb-3 fst-italic text-dark">"${esc(item.cerita)}"</p>
+            ${isPending ? `
+              <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-5">
+                  <label class="form-label small fw-semibold mb-1">Tentukan Jadwal Konseling</label>
+                  <input type="text" id="jadwalInput_${esc(item.id)}" class="form-control form-control-sm"
+                         placeholder="Contoh: Besok, 10:00 WIB (Ruang BK)" required>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label small fw-semibold mb-1">Pesan untuk Siswa</label>
+                  <input type="text" id="catatanInput_${esc(item.id)}" class="form-control form-control-sm"
+                         value="Silakan datang ke Ruang BK">
+                </div>
+                <div class="col-12 col-md-3">
+                  <button type="button" class="btn btn-primary btn-sm w-100 fw-semibold py-2"
+                          onclick="prosesSetujuiKonseling('${esc(item.id)}')">
+                    Setuju dan buat jadwal
+                  </button>
+                  <button type="button" class="btn btn-outline-danger btn-sm w-100 mt-1"
+                          onclick="prosesTolakKonseling('${esc(item.id)}')">
+                    Tolak pengajuan
+                  </button>
+                </div>
+              </div>
+            ` : `
+              <div class="small ${item.status === 'Ditolak' ? 'text-danger' : 'text-success'} fw-semibold">
+                <i class="bi ${item.status === 'Ditolak' ? 'bi-x-circle' : 'bi-calendar-check'} me-1"></i>
+                ${item.status === 'Ditolak' ? 'Ditolak' : 'Jadwal: ' + esc(item.jadwal)} — (${esc(item.catatanBK)})
+              </div>
+            `}
+          `;
+          container.appendChild(card);
+        });
+      }
+
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('modalPengajuanKonseling')).show();
+    }
+
+    async function prosesSetujuiKonseling(idKonseling) {
+      const jadwal = document.getElementById(`jadwalInput_${idKonseling}`).value.trim();
+      const catatan = document.getElementById(`catatanInput_${idKonseling}`).value.trim();
+      if (!jadwal) {
+        showToast('Harap isi tanggal & jam jadwal konseling terlebih dahulu!', 'warning');
+        return;
+      }
+
+      showLoading('Menyimpan jadwal konseling...');
+      try {
+        const res = await callServer('setujuiKonseling', sessionToken, idKonseling, jadwal, catatan);
+        hideLoading();
+        if (res.success) {
+          showToast(res.message);
+          bootstrap.Modal.getInstance(document.getElementById('modalPengajuanKonseling')).hide();
+          refreshAllData();
+        } else {
+          showToast(res.message, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal: ' + err.message, 'error');
+      }
+    }
+
+    async function prosesTolakKonseling(id) {
+      const alasan = document.getElementById('catatanInput_' + id).value.trim();
+      showLoading('Menyimpan keputusan...');
+      try {
+        const res = await callServer('tolakKonseling', sessionToken, id, alasan);
+        hideLoading();
+        showToast(res.message, res.success ? 'success' : 'error');
+        if (res.success) {
+          bootstrap.Modal.getInstance(document.getElementById('modalPengajuanKonseling')).hide();
+          refreshAllData();
+        }
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal: ' + err.message, 'error');
+      }
+    }
+
+    // =========================================================================
+    // 4. MENU MURID
+    // =========================================================================
+    function renderDashboardMurid(siswaId) {
+      const siswa = appData.students.find(s => String(s.id) === String(siswaId));
+      if (!siswa) return;
+
+      document.getElementById('muridSubHeader').innerText = `Siswa: ${siswa.nama} • Kelas ${siswa.kelasInfo}`;
+      document.getElementById('muridPoinVal').innerText = siswa.poin;
+
+      const bar = document.getElementById('muridPoinBar');
+      bar.style.width = `${siswa.poin}%`;
+      bar.className = `progress-bar ${siswa.poin >= 85 ? 'bg-success' : (siswa.poin >= 70 ? 'bg-warning' : 'bg-danger')}`;
+
+      const statusEl = document.getElementById('muridStatusText');
+      statusEl.innerText = siswa.statusSP;
+      statusEl.className = `fw-bold mb-1 ${siswa.statusSP === 'Aman' ? 'text-success' : 'text-danger'}`;
+
+      document.getElementById('muridJumlahSP').innerText = siswa.statusSP === 'Aman' ? '0 (Nihil)' : siswa.statusSP;
+
+      const myKonseling = appData.konseling.filter(k => String(k.idSiswa) === String(siswa.id));
+      const latestScheduled = myKonseling.find(k => String(k.status).indexOf('Disetujui') === 0);
+      if (latestScheduled) {
+        document.getElementById('muridJadwalKonseling').innerText = latestScheduled.jadwal;
+        document.getElementById('muridStatusKonselingBadge').innerText = 'Disetujui Guru BK';
+      } else if (myKonseling.some(k => k.status === 'Menunggu')) {
+        document.getElementById('muridJadwalKonseling').innerText = 'Menunggu persetujuan guru BK';
+        document.getElementById('muridStatusKonselingBadge').innerText = 'Dalam Antrean';
+      } else if (myKonseling.length > 0) {
+        document.getElementById('muridJadwalKonseling').innerText = 'Ditolak Guru BK';
+        document.getElementById('muridStatusKonselingBadge').innerText = myKonseling[0].catatanBK || '-';
+      } else {
+        document.getElementById('muridJadwalKonseling').innerText = 'Belum ada jadwal';
+        document.getElementById('muridStatusKonselingBadge').innerText = '-';
+      }
+
+      const listEl = document.getElementById('muridListPengajuan');
+      listEl.innerHTML = '';
+      if (myKonseling.length === 0) {
+        listEl.innerHTML = '<small class="text-muted">Belum ada riwayat pengajuan konseling.</small>';
+      } else {
+        myKonseling.forEach(k => {
+          const isWait = k.status === 'Menunggu';
+          const isRejected = k.status === 'Ditolak';
+          listEl.innerHTML += `
+            <div class="p-2 px-3 rounded-3 border bg-light small">
+              <div class="d-flex justify-content-between align-items-center gap-2 fw-semibold flex-wrap">
+                <span>${esc(k.topik)}</span>
+                <span class="badge ${isWait ? 'bg-warning text-dark' : (isRejected ? 'bg-danger' : 'bg-success')}">
+                  ${isWait ? 'Menunggu persetujuan guru BK' : (isRejected ? 'Ditolak: ' + esc(k.catatanBK) : 'Terjadwal: ' + esc(k.jadwal))}
+                </span>
+              </div>
+              <div class="text-muted mt-1">"${esc(k.cerita)}"</div>
+            </div>
+          `;
+        });
+      }
+
+      const myCatatan = appData.catatan.filter(c => String(c.idSiswa) === String(siswa.id));
+      const tbody = document.getElementById('muridTabelRiwayat');
+      tbody.innerHTML = '';
+      if (myCatatan.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Belum ada catatan pelanggaran maupun prestasi.</td></tr>';
+      } else {
+        myCatatan.forEach(c => {
+          const isPrestasi = c.jenis !== 'Pelanggaran';
+          tbody.innerHTML += `
+            <tr>
+              <td class="small text-muted">${esc(c.tanggal)}</td>
+              <td class="fw-medium">${esc(c.keterangan)}</td>
+              <td>
+                <span class="badge ${isPrestasi ? 'bg-success-subtle text-success-emphasis' : 'bg-danger-subtle text-danger'}">
+                  ${esc(c.jenis)}
+                </span>
+              </td>
+              <td class="text-end fw-bold ${isPrestasi ? 'text-success' : 'text-danger'}">
+                ${c.perubahanPoin > 0 ? '+' + c.perubahanPoin : c.perubahanPoin}
+              </td>
+            </tr>
+          `;
+        });
+      }
+    }
+
+    async function handleAjukanKonseling(e) {
+      e.preventDefault();
+      const topik = document.getElementById('konselingTopik').value;
+      const cerita = document.getElementById('konselingCerita').value.trim();
+      if (!cerita) return;
+
+      showLoading('Mengirim pengajuan konseling...');
+      try {
+        const res = await callServer('ajukanKonseling', sessionToken, { topik, cerita });
+        hideLoading();
+        if (res.success) {
+          document.getElementById('konselingCerita').value = '';
+          showToast(res.message);
+          refreshAllData();
+        } else {
+          showToast(res.message, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal mengirim pengajuan: ' + err.message, 'error');
+      }
+    }
+
+    // =========================================================================
+    // 5. MENU GURU / WALI KELAS
+    // =========================================================================
+    function renderDashboardGuru() {
+      document.getElementById('guruSubHeader').innerText = `${currentUser.nama} • ${currentUser.kelasInfo}`;
+
+      const isWali = /wali kelas/i.test(currentUser.kelasInfo);
+      const kelasMatch = currentUser.kelasInfo.replace(/Wali Kelas/i, '').trim();
+      const binaan = isWali ? appData.students.filter(s => s.kelasInfo.toLowerCase() === kelasMatch.toLowerCase()) : [];
+      const siswaTampil = binaan.length > 0 ? binaan : appData.students;
+
+      document.getElementById('guruStatBinaan').innerText = siswaTampil.length;
+      document.getElementById('guruLabelKelasBinaan').innerText = binaan.length > 0 ? `Kelas ${kelasMatch}` : 'Seluruh Siswa Sekolah';
+
+      const spBinaan = siswaTampil.filter(s => s.statusSP !== 'Aman').length;
+      document.getElementById('guruStatPerhatian').innerText = spBinaan;
+
+      const laporanSaya = appData.catatan.filter(c => c.pelapor === currentUser.nama).length;
+      document.getElementById('guruStatLaporan').innerText = laporanSaya;
+
+      const filterSelect = document.getElementById('guruFilterKelas');
+      const prevVal = filterSelect.value;
+      const uniqueClasses = [...new Set(appData.students.map(s => s.kelasInfo))];
+      filterSelect.innerHTML = '<option value="">Semua Kelas</option>';
+      uniqueClasses.forEach(kls => {
+        filterSelect.innerHTML += `<option value="${esc(kls)}">${esc(kls)}</option>`;
+      });
+      if (uniqueClasses.includes(prevVal)) filterSelect.value = prevVal;
+
+      renderTabelGuru();
+    }
+
+    function renderTabelGuru() {
+      const searchNama = document.getElementById('guruSearchNama').value.toLowerCase().trim();
+      const filterKelas = document.getElementById('guruFilterKelas').value;
+      const tbody = document.getElementById('guruTabelSiswaBody');
+
+      const filtered = appData.students.filter(s => {
+        const matchNama = s.nama.toLowerCase().includes(searchNama);
+        const matchKelas = filterKelas === '' || s.kelasInfo === filterKelas;
+        return matchNama && matchKelas;
+      });
+
+      tbody.innerHTML = '';
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Tidak ada siswa yang sesuai pencarian.</td></tr>';
+        return;
+      }
+      filtered.forEach(s => {
+        tbody.innerHTML += `
+          <tr>
+            <td class="fw-semibold">${esc(s.nama)}</td>
+            <td>${esc(s.kelasInfo)}</td>
+            <td><span class="poin-chip ${s.poin >= 85 ? 'poin-ok' : (s.poin >= 70 ? 'poin-warn' : 'poin-bad')}">${esc(s.poin)}/100</span></td>
+            <td><span class="badge ${getSPBadgeClass(s.statusSP)}">${esc(s.statusSP)}</span></td>
+            <td>
+              <span class="badge ${s.statusSP === 'Aman' ? 'bg-success' : (s.statusSP === 'SP 1' ? 'bg-warning text-dark' : 'bg-danger')}">
+                ${s.statusSP === 'Aman' ? 'Baik / Aman' : 'Perlu Perhatian'}
+              </span>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    // =========================================================================
+    // 6. MENU ORANG TUA
+    // =========================================================================
+    function renderDashboardOrtu() {
+      const childId = currentUser.terkaitIdSiswa;
+      const container = document.getElementById('ortuChildContainer');
+      container.innerHTML = '';
+
+      if (!childId) {
+        container.innerHTML = '<div class="alert alert-warning">Akun Orang Tua belum dihubungkan ke data siswa. Hubungi Guru BK di Halaman Pengaturan.</div>';
+        return;
+      }
+
+      document.getElementById('viewMurid').style.display = 'block';
+      document.getElementById('formAjukanKonseling').parentElement.style.display = 'none';
+      renderDashboardMurid(childId);
+    }
+
+    // =========================================================================
+    // 7. MODAL CATAT POIN, TINDAKAN & PROFIL
+    // =========================================================================
+    function populateStudentSelectOptions() {
+      const select = document.getElementById('inputCatatanSiswa');
+      select.innerHTML = '<option value="">-- Pilih Nama Siswa --</option>';
+      appData.students.forEach(s => {
+        select.innerHTML += `<option value="${esc(s.id)}">${esc(s.nama)} (${esc(s.kelasInfo)}) - Poin: ${esc(s.poin)}</option>`;
+      });
+    }
+
+    function openCatatPoinModal() {
+      document.getElementById('inputCatatanKeterangan').value = '';
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCatatPoin')).show();
+    }
+
+    function updateDefaultPoinInput() {
+      const isPrestasi = document.getElementById('radioPrestasi').checked;
+      document.getElementById('inputCatatanPoin').value = isPrestasi ? 15 : 10;
+    }
+
+    async function handleSimpanCatatanPoin(e) {
+      e.preventDefault();
+      const idSiswa = document.getElementById('inputCatatanSiswa').value;
+      const jenis = document.querySelector('input[name="jenisCatatan"]:checked').value;
+      const poin = document.getElementById('inputCatatanPoin').value;
+      const keterangan = document.getElementById('inputCatatanKeterangan').value.trim();
+
+      showLoading('Menyimpan catatan & menghitung ulang poin...');
+      try {
+        const res = await callServer('tambahCatatanPoin', sessionToken, { idSiswa, jenis, poin, keterangan });
+        hideLoading();
+        if (res.success) {
+          bootstrap.Modal.getInstance(document.getElementById('modalCatatPoin')).hide();
+          showToast(res.message);
+          refreshAllData();
+        } else {
+          showToast(res.message, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal menyimpan catatan: ' + err.message, 'error');
+      }
+    }
+
+    function openTindakanModal(idSiswa) {
+      const st = appData.students.find(x => x.id === idSiswa) || {};
+      document.getElementById('tindakanIdSiswa').value = idSiswa;
+      document.getElementById('tindakanNamaSiswa').innerText = st.nama || '-';
+      document.getElementById('tindakanStatusSkorsing').value = st.skorsing || 'Tidak';
+      document.getElementById('tindakanResetPoin').checked = false;
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('modalTindakanSiswa')).show();
+    }
+
+    async function handleSimpanTindakan(e) {
+      e.preventDefault();
+      const idSiswa = document.getElementById('tindakanIdSiswa').value;
+      const skorsing = document.getElementById('tindakanStatusSkorsing').value;
+      const resetPoin = document.getElementById('tindakanResetPoin').checked;
+
+      showLoading('Memperbarui status pembinaan...');
+      try {
+        const res = await callServer('updateTindakanSiswa', sessionToken, idSiswa, skorsing, resetPoin);
+        hideLoading();
+        if (res.success) {
+          bootstrap.Modal.getInstance(document.getElementById('modalTindakanSiswa')).hide();
+          showToast(res.message);
+          refreshAllData();
+        } else {
+          showToast(res.message, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal memperbarui tindakan: ' + err.message, 'error');
+      }
+    }
+
+    function openProfileModal() {
+      document.getElementById('profilModalNama').innerText = currentUser.nama;
+      document.getElementById('profilModalRole').innerText = currentUser.role.replace('_', ' ');
+      document.getElementById('profilModalInfo').innerText = currentUser.kelasInfo;
+      document.getElementById('formUbahSandi').reset();
+      bootstrap.Modal.getOrCreateInstance(document.getElementById('modalProfil')).show();
+    }
+
+    async function handleUbahSandi(e) {
+      e.preventDefault();
+      showLoading('Menyimpan sandi baru...');
+      try {
+        const res = await callServer('ubahSandi', sessionToken, document.getElementById('sandiLama').value, document.getElementById('sandiBaru').value);
+        hideLoading();
+        showToast(res.message, res.success ? 'success' : 'error');
+        if (res.success) e.target.reset();
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal: ' + err.message, 'error');
+      }
+    }
+
+    // =========================================================================
+    // 8. HALAMAN PENGATURAN (CRUD AKUN & SETUP DATABASE)
+    // =========================================================================
+    function toggleSettingsView() {
+      isSettingsOpen = !isSettingsOpen;
+      renderActiveRoleView();
+    }
+
+    function renderSettingsView() {
+      document.getElementById('totalUsersBadge').innerText = `${appData.users.length} Akun`;
+
+      const ortuSelect = document.getElementById('crudUserTerkaitSiswa');
+      ortuSelect.innerHTML = '<option value="">-- Pilih Putra/Putri --</option>';
+      appData.students.forEach(s => {
+        ortuSelect.innerHTML += `<option value="${esc(s.id)}">${esc(s.nama)} (${esc(s.kelasInfo)})</option>`;
+      });
+
+      const tbody = document.getElementById('crudTabelUsersBody');
+      tbody.innerHTML = '';
+      appData.users.forEach(u => {
+        tbody.innerHTML += `
+          <tr>
+            <td class="small text-muted fw-bold">${esc(u.id)}</td>
+            <td><span class="badge bg-secondary-subtle text-dark">${esc(u.role)}</span></td>
+            <td class="fw-semibold">${esc(u.nama)}</td>
+            <td class="small">${esc(u.kelasInfo)}</td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="editUserAccount('${esc(u.id)}')" title="Edit">
+                <i class="bi bi-pencil-square"></i>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser('${esc(u.id)}')" title="Hapus">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    function toggleOrtuChildSelect() {
+      const role = document.getElementById('crudUserRole').value;
+      document.getElementById('ortuStudentLinkGroup').style.display = role === 'Ortu' ? 'block' : 'none';
+    }
+
+    function editUserAccount(id) {
+      const u = appData.users.find(x => x.id === id);
+      if (!u) return;
+      document.getElementById('formUserTitle').innerText = 'Edit Data Akun';
+      document.getElementById('crudUserMode').value = 'edit';
+      document.getElementById('crudUserId').value = u.id;
+      document.getElementById('crudUserRole').value = u.role;
+      document.getElementById('crudUserRole').disabled = true;
+      document.getElementById('crudUserNama').value = u.nama;
+      document.getElementById('crudUserKelas').value = u.kelasInfo;
+      document.getElementById('crudUserPassword').value = '';
+      document.getElementById('crudUserTerkaitSiswa').value = u.terkaitIdSiswa || '';
+      toggleOrtuChildSelect();
+    }
+
+    function resetFormCrudUser() {
+      document.getElementById('formUserTitle').innerText = 'Tambah Akun Baru';
+      document.getElementById('crudUserMode').value = 'add';
+      document.getElementById('crudUserId').value = '';
+      document.getElementById('crudUserRole').disabled = false;
+      document.getElementById('crudUserNama').value = '';
+      document.getElementById('crudUserKelas').value = '';
+      document.getElementById('crudUserPassword').value = '';
+      document.getElementById('crudUserTerkaitSiswa').value = '';
+      toggleOrtuChildSelect();
+    }
+
+    async function handleSaveUser(e) {
+      e.preventDefault();
+      const payload = {
+        mode: document.getElementById('crudUserMode').value,
+        id: document.getElementById('crudUserId').value,
+        role: document.getElementById('crudUserRole').value,
+        nama: document.getElementById('crudUserNama').value.trim(),
+        kelasInfo: document.getElementById('crudUserKelas').value.trim(),
+        password: document.getElementById('crudUserPassword').value,
+        terkaitIdSiswa: document.getElementById('crudUserTerkaitSiswa').value
+      };
+
+      showLoading('Menyimpan data pengguna...');
+      try {
+        const res = await callServer('saveUserAccount', sessionToken, payload);
+        hideLoading();
+        if (res.success) {
+          resetFormCrudUser();
+          showToast(res.message);
+          refreshAllData();
+        } else {
+          showToast(res.message, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal menyimpan akun: ' + err.message, 'error');
+      }
+    }
+
+    async function confirmDeleteUser(id) {
+      const target = appData.users.find(x => x.id === id);
+      const nama = target ? target.nama : id;
+      if (!confirm('Hapus akun ' + nama + '? Tindakan ini tidak dapat dibatalkan.')) return;
+
+      showLoading(`Menghapus akun ${nama}...`);
+      try {
+        const res = await callServer('deleteUserAccount', sessionToken, id);
+        hideLoading();
+        if (res.success) {
+          showToast(res.message);
+          refreshAllData();
+        } else {
+          showToast(res.message, 'error');
+        }
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal menghapus akun: ' + err.message, 'error');
+      }
+    }
+
+    async function triggerAutoSetup() {
+      showLoading('Memverifikasi struktur database...');
+      try {
+        const res = await callServer('jalankanSetup', sessionToken);
+        hideLoading();
+        showToast(res.message, res.success ? 'success' : 'error');
+        if (res.success) refreshAllData();
+      } catch (err) {
+        hideLoading();
+        showToast('Gagal setup database: ' + err.message, 'error');
+      }
+    }
+  </script>
+</body>
+</html>
