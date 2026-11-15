@@ -107,6 +107,7 @@
       konseling: [
         { id: 'KS-2001', tanggal: now, idSiswa: 'SW01', namaSiswa: 'Aminah', kelas: 'XI RPL 1', topik: 'Karir, PKL & Kuliah', cerita: 'Ingin cerita sedikit mengenai kebingungan memilih tempat PKL dan persiapan kuliah.', status: 'Menunggu', jadwal: '-', catatanBK: '-' }
       ],
+      laporan: [],
       sessions: {},
       loginFails: {}
     };
@@ -120,6 +121,7 @@
         if (parsed && Array.isArray(parsed.users) && Array.isArray(parsed.catatan) && Array.isArray(parsed.konseling)) {
           parsed.sessions = parsed.sessions || {};
           parsed.loginFails = parsed.loginFails || {};
+          parsed.laporan = Array.isArray(parsed.laporan) ? parsed.laporan : [];
           return parsed;
         }
       } catch (e) {}
@@ -259,13 +261,16 @@
         let students = db.users.filter(u => u.role === 'Murid');
         let catatan = db.catatan.slice();
         let konseling = db.konseling.slice();
+        let laporan = [];
         let users = [];
 
         if (me.role === 'Guru_BK') {
           users = db.users.map(pub);
+          laporan = db.laporan.slice();
         } else if (me.role === 'Guru') {
           catatan = catatan.filter(c => c.pelapor === me.nama);
           konseling = [];
+          laporan = db.laporan.filter(l => l.idPelapor === me.id);
         } else {
           const sid = me.role === 'Murid' ? me.id : me.terkaitIdSiswa;
           students = students.filter(s => s.id === sid);
@@ -282,12 +287,13 @@
           users,
           students: students.map(pub),
           catatan: catatan.reverse(),
-          konseling: konseling.reverse()
+          konseling: konseling.reverse(),
+          laporan: laporan.reverse()
         };
       }
 
       if (action === 'tambahCatatanPoin') {
-        const me = requireSession(db, args[0], ['Guru_BK', 'Guru']);
+        const me = requireSession(db, args[0], ['Guru_BK']);
         const p = args[1] || {};
         if (['Pelanggaran', 'Prestasi'].indexOf(p.jenis) < 0) throw new Error('Jenis catatan tidak valid.');
         const bobot = Math.round(Number(p.poin));
@@ -320,6 +326,92 @@
         let msg = `Catatan ${p.jenis} untuk ${s.nama} disimpan. Poin kini ${baru}/100 (${status}).`;
         if (status !== 'Aman' && status !== prevStatus) msg += ` Status berubah dari ${prevStatus}.`;
         return { success: true, message: msg };
+      }
+
+      if (action === 'ajukanLaporanGuru') {
+        const me = requireSession(db, args[0], ['Guru']);
+        const p = args[1] || {};
+        if (['Pelanggaran', 'Prestasi'].indexOf(p.jenis) < 0) throw new Error('Jenis laporan tidak valid.');
+        const bobot = Math.round(Number(p.poin));
+        if (!(bobot >= 1 && bobot <= 100)) throw new Error('Usulan bobot poin harus 1 sampai 100.');
+        const ket = String(p.keterangan || '').trim().slice(0, 300);
+        if (!ket) throw new Error('Keterangan wajib diisi.');
+        const s = db.users.find(u => u.id === String(p.idSiswa) && u.role === 'Murid');
+        if (!s) throw new Error('Data siswa tidak ditemukan!');
+
+        db.laporan.push({
+          id: nextId(db.laporan, 'LP-', 3001),
+          tanggal: formatJakarta(new Date(), true),
+          idSiswa: s.id,
+          namaSiswa: s.nama,
+          kelas: s.kelasInfo,
+          jenis: p.jenis,
+          bobotUsulan: bobot,
+          keterangan: ket,
+          idPelapor: me.id,
+          pelapor: me.nama,
+          status: 'Menunggu',
+          bobotDisetujui: 0,
+          catatanBK: '-',
+          diprosesOleh: '-',
+          tanggalProses: '-'
+        });
+        saveDb(db);
+        return {
+          success: true,
+          message: `Laporan untuk ${s.nama} dikirim. Poin akan berubah setelah diverifikasi Guru BK.`
+        };
+      }
+
+      if (action === 'verifikasiLaporanGuru') {
+        const me = requireSession(db, args[0], ['Guru_BK']);
+        const [, idLaporan, keputusan, bobotFinal, catatanBK] = args;
+        if (['Setujui', 'Tolak'].indexOf(keputusan) < 0) throw new Error('Keputusan tidak valid.');
+        const l = db.laporan.find(x => x.id === String(idLaporan));
+        if (!l) throw new Error('Laporan tidak ditemukan.');
+        if (l.status !== 'Menunggu') throw new Error('Laporan ini sudah diproses.');
+        const now = formatJakarta(new Date(), true);
+        const ketBK = String(catatanBK || '').trim().slice(0, 200);
+
+        if (keputusan === 'Tolak') {
+          l.status = 'Ditolak';
+          l.bobotDisetujui = 0;
+          l.catatanBK = ketBK || 'Laporan tidak disetujui oleh Guru BK.';
+          l.diprosesOleh = me.nama;
+          l.tanggalProses = now;
+          saveDb(db);
+          return { success: true, message: 'Laporan ditolak. Poin siswa tidak berubah.' };
+        }
+
+        const bobot = Math.round(Number(bobotFinal || l.bobotUsulan));
+        if (!(bobot >= 1 && bobot <= 100)) throw new Error('Bobot poin final harus 1 sampai 100.');
+        const s = db.users.find(u => u.id === l.idSiswa && u.role === 'Murid');
+        if (!s) throw new Error('Siswa tidak ditemukan.');
+
+        const baru = Math.max(0, Math.min(100, Number(s.poin) + (l.jenis === 'Prestasi' ? bobot : -bobot)));
+        const delta = baru - Number(s.poin);
+        const status = hitungStatusSP(baru);
+
+        db.catatan.push({
+          id: nextId(db.catatan, 'CT-', 1001),
+          tanggal: formatJakarta(new Date(), false),
+          idSiswa: s.id,
+          namaSiswa: s.nama,
+          kelas: s.kelasInfo,
+          jenis: l.jenis,
+          keterangan: l.keterangan,
+          perubahanPoin: delta,
+          pelapor: l.pelapor
+        });
+        s.poin = baru;
+        s.statusSP = status;
+        l.status = 'Disetujui';
+        l.bobotDisetujui = bobot;
+        l.catatanBK = ketBK || 'Disetujui dan poin diperbarui.';
+        l.diprosesOleh = me.nama;
+        l.tanggalProses = now;
+        saveDb(db);
+        return { success: true, message: `Laporan disetujui. Poin ${s.nama} kini ${baru}/100 (${status}).` };
       }
 
       if (action === 'updateTindakanSiswa') {
@@ -399,6 +491,20 @@
         k.catatanBK = String(alasan || '').trim().slice(0, 200) || 'Silakan ajukan ulang atau temui Guru BK.';
         saveDb(db);
         return { success: true, message: 'Pengajuan ditolak dan alasan sudah dikirim ke siswa.' };
+      }
+
+      if (action === 'selesaikanKonseling') {
+        requireSession(db, args[0], ['Guru_BK']);
+        const [, id, catatanBK] = args;
+        const k = db.konseling.find(x => x.id === String(id));
+        if (!k) throw new Error('Pengajuan tidak ditemukan.');
+        if (k.status !== 'Disetujui & Terjadwal') throw new Error('Hanya konseling terjadwal yang bisa ditandai selesai.');
+        k.status = 'Selesai';
+        const ket = String(catatanBK || '').trim().slice(0, 200);
+        if (ket) k.catatanBK = ket;
+        else if (!k.catatanBK || k.catatanBK === '-') k.catatanBK = 'Sesi konseling telah selesai dilaksanakan.';
+        saveDb(db);
+        return { success: true, message: 'Sesi konseling ditandai selesai.' };
       }
 
       if (action === 'saveUserAccount') {

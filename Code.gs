@@ -6,7 +6,7 @@
  *
  * Catatan: fungsi berakhiran "_" bersifat privat (tidak bisa dipanggil dari browser).
  */
-const SHEET = { USERS: 'Users', CATATAN: 'Catatan_Poin', KONSELING: 'Konseling', CONFIG: 'Pengaturan_Sekolah' };
+const SHEET = { USERS: 'Users', CATATAN: 'Catatan_Poin', KONSELING: 'Konseling', CONFIG: 'Pengaturan_Sekolah', LAPORAN: 'Laporan_Guru' };
 const TZ = 'Asia/Jakarta';
 const SESSION_TTL = 21600; // 6 jam
 const ROLES = ['Murid', 'Guru', 'Ortu', 'Guru_BK'];
@@ -39,10 +39,13 @@ function doPost(e) {
       jalankanSetup: () => jalankanSetup(args[0]),
       getAllAppData: () => getAllAppData(args[0]),
       tambahCatatanPoin: () => tambahCatatanPoin(args[0], args[1]),
+      ajukanLaporanGuru: () => ajukanLaporanGuru(args[0], args[1]),
+      verifikasiLaporanGuru: () => verifikasiLaporanGuru(args[0], args[1], args[2], args[3], args[4]),
       updateTindakanSiswa: () => updateTindakanSiswa(args[0], args[1], args[2], args[3]),
       ajukanKonseling: () => ajukanKonseling(args[0], args[1]),
       setujuiKonseling: () => setujuiKonseling(args[0], args[1], args[2], args[3]),
       tolakKonseling: () => tolakKonseling(args[0], args[1], args[2]),
+      selesaikanKonseling: () => selesaikanKonseling(args[0], args[1], args[2]),
       saveUserAccount: () => saveUserAccount(args[0], args[1]),
       deleteUserAccount: () => deleteUserAccount(args[0], args[1])
     };
@@ -142,6 +145,15 @@ function konseling_() {
     topik: r[5], cerita: r[6], status: r[7], jadwal: fmt_(r[8], true), catatanBK: r[9]
   }));
 }
+function laporan_() {
+  const sh = ss_().getSheetByName(SHEET.LAPORAN);
+  if (!sh || sh.getLastRow() <= 1) return [];
+  return sh.getDataRange().getValues().slice(1).map((r, i) => ({
+    _row: i + 2, id: String(r[0]), tanggal: fmt_(r[1], true), idSiswa: String(r[2]), namaSiswa: r[3], kelas: r[4],
+    jenis: r[5], bobotUsulan: Number(r[6]), keterangan: r[7], idPelapor: String(r[8]), pelapor: r[9],
+    status: r[10], bobotDisetujui: Number(r[11] || 0), catatanBK: r[12], diprosesOleh: r[13], tanggalProses: fmt_(r[14], true)
+  }));
+}
 
 // ---------- Sesi ----------
 function requireSession_(token, roles) {
@@ -156,7 +168,7 @@ function requireSession_(token, roles) {
 function setupDatabase() { setupDatabase_(); return { success: true, message: 'Database siap digunakan.' }; }
 function ensureDatabaseReady_() {
   const ss = ss_();
-  const lengkap = [SHEET.USERS, SHEET.CATATAN, SHEET.KONSELING, SHEET.CONFIG].every(n => ss.getSheetByName(n));
+  const lengkap = [SHEET.USERS, SHEET.CATATAN, SHEET.KONSELING, SHEET.CONFIG, SHEET.LAPORAN].every(n => ss.getSheetByName(n));
   if (!lengkap) setupDatabase_();
 }
 function sheet_(ss, name) { return ss.getSheetByName(name) || ss.insertSheet(name); }
@@ -222,6 +234,12 @@ function setupDatabase_() {
     ks.appendRow(['KS-2001', now, 'SW01', 'Aminah', 'XI RPL 1', 'Karir, PKL & Kuliah',
       'Ingin cerita sedikit mengenai kebingungan memilih tempat PKL dan persiapan kuliah.', 'Menunggu', '-', '-']);
   }
+  const lp = sheet_(ss, SHEET.LAPORAN);
+  if (lp.getLastRow() === 0) {
+    const h = ['ID_Laporan', 'Tanggal', 'ID_Siswa', 'Nama_Siswa', 'Kelas', 'Jenis', 'Bobot_Usulan', 'Keterangan', 'ID_Pelapor', 'Pelapor', 'Status', 'Bobot_Disetujui', 'Catatan_BK', 'Diproses_Oleh', 'Tanggal_Proses'];
+    lp.appendRow(h); header_(lp, h.length);
+    lp.getRange('B:B').setNumberFormat('@'); lp.getRange('O:O').setNumberFormat('@');
+  }
 
   const def = ss.getSheetByName('Sheet1');
   if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
@@ -273,12 +291,14 @@ function getAllAppData(token) {
     const me = requireSession_(token);
     const all = users_();
     let students = all.filter(u => u.role === 'Murid');
-    let catatan = catatan_(), konseling = konseling_(), users = [];
+    let catatan = catatan_(), konseling = konseling_(), laporan = [], users = [];
     if (me.role === 'Guru_BK') {
       users = all.map(pub_);
+      laporan = laporan_();
     } else if (me.role === 'Guru') {
       catatan = catatan.filter(c => c.pelapor === me.nama);
       konseling = [];
+      laporan = laporan_().filter(l => l.idPelapor === me.id);
     } else {
       const sid = me.role === 'Murid' ? me.id : me.terkaitIdSiswa;
       students = students.filter(s => s.id === sid);
@@ -286,14 +306,14 @@ function getAllAppData(token) {
       konseling = konseling.filter(k => k.idSiswa === sid);
       if (me.role === 'Ortu') konseling = konseling.map(k => Object.assign({}, k, { cerita: '(Isi cerita bersifat rahasia)' }));
     }
-    return { success: true, me: pub_(me), users: users, students: students.map(pub_), catatan: catatan.reverse(), konseling: konseling.reverse() };
+    return { success: true, me: pub_(me), users: users, students: students.map(pub_), catatan: catatan.reverse(), konseling: konseling.reverse(), laporan: laporan.reverse() };
   });
 }
 
 // ---------- API: poin ----------
 function tambahCatatanPoin(token, p) {
   return guard_(() => {
-    const me = requireSession_(token, ['Guru_BK', 'Guru']);
+    const me = requireSession_(token, ['Guru_BK']);
     return withLock_(() => {
       p = p || {};
       if (['Pelanggaran', 'Prestasi'].indexOf(p.jenis) < 0) throw new Error('Jenis catatan tidak valid.');
@@ -315,6 +335,65 @@ function tambahCatatanPoin(token, p) {
       let msg = 'Catatan ' + p.jenis + ' untuk ' + s.nama + ' disimpan. Poin kini ' + baru + '/100 (' + status + ').';
       if (status !== 'Aman' && status !== s.statusSP) msg += ' Status berubah dari ' + s.statusSP + '.';
       return { success: true, message: msg };
+    });
+  });
+}
+function ajukanLaporanGuru(token, p) {
+  return guard_(() => {
+    const me = requireSession_(token, ['Guru']);
+    return withLock_(() => {
+      p = p || {};
+      if (['Pelanggaran', 'Prestasi'].indexOf(p.jenis) < 0) throw new Error('Jenis laporan tidak valid.');
+      const bobot = Math.round(Number(p.poin));
+      if (!(bobot >= 1 && bobot <= 100)) throw new Error('Usulan bobot poin harus 1 sampai 100.');
+      const ket = String(p.keterangan || '').trim().slice(0, 300);
+      if (!ket) throw new Error('Keterangan wajib diisi.');
+      const s = users_().filter(u => u.id === String(p.idSiswa) && u.role === 'Murid')[0];
+      if (!s) throw new Error('Data siswa tidak ditemukan!');
+      ensureDatabaseReady_();
+      const sl = ss_().getSheetByName(SHEET.LAPORAN);
+      sl.appendRow([nextId_(sl, 'LP-', 3001), Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm'), s.id, s.nama, s.kelasInfo, p.jenis, bobot, ket, me.id, me.nama, 'Menunggu', 0, '-', '-', '-']);
+      return { success: true, message: 'Laporan untuk ' + s.nama + ' dikirim. Poin akan berubah setelah diverifikasi Guru BK.' };
+    });
+  });
+}
+function verifikasiLaporanGuru(token, idLaporan, keputusan, bobotFinal, catatanBK) {
+  return guard_(() => {
+    const me = requireSession_(token, ['Guru_BK']);
+    return withLock_(() => {
+      if (['Setujui', 'Tolak'].indexOf(keputusan) < 0) throw new Error('Keputusan tidak valid.');
+      const l = laporan_().filter(x => x.id === String(idLaporan))[0];
+      if (!l) throw new Error('Laporan tidak ditemukan.');
+      if (l.status !== 'Menunggu') throw new Error('Laporan ini sudah diproses.');
+      const sl = ss_().getSheetByName(SHEET.LAPORAN);
+      const now = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm');
+      const ketBK = String(catatanBK || '').trim().slice(0, 200);
+      if (keputusan === 'Tolak') {
+        sl.getRange(l._row, 11).setValue('Ditolak');
+        sl.getRange(l._row, 12).setValue(0);
+        sl.getRange(l._row, 13).setValue(ketBK || 'Laporan tidak disetujui oleh Guru BK.');
+        sl.getRange(l._row, 14).setValue(me.nama);
+        sl.getRange(l._row, 15).setValue(now);
+        return { success: true, message: 'Laporan ditolak. Poin siswa tidak berubah.' };
+      }
+      const bobot = Math.round(Number(bobotFinal || l.bobotUsulan));
+      if (!(bobot >= 1 && bobot <= 100)) throw new Error('Bobot poin final harus 1 sampai 100.');
+      const s = users_().filter(u => u.id === l.idSiswa && u.role === 'Murid')[0];
+      if (!s) throw new Error('Siswa tidak ditemukan.');
+      const baru = Math.max(0, Math.min(100, s.poin + (l.jenis === 'Prestasi' ? bobot : -bobot)));
+      const delta = baru - s.poin;
+      const status = hitungStatusSP(baru);
+      const sc = ss_().getSheetByName(SHEET.CATATAN);
+      sc.appendRow([nextId_(sc, 'CT-', 1001), Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'), s.id, s.nama, s.kelasInfo, l.jenis, l.keterangan, delta, l.pelapor]);
+      const su = ss_().getSheetByName(SHEET.USERS);
+      su.getRange(s._row, 6).setValue(baru);
+      su.getRange(s._row, 7).setValue(status);
+      sl.getRange(l._row, 11).setValue('Disetujui');
+      sl.getRange(l._row, 12).setValue(bobot);
+      sl.getRange(l._row, 13).setValue(ketBK || 'Disetujui dan poin diperbarui.');
+      sl.getRange(l._row, 14).setValue(me.nama);
+      sl.getRange(l._row, 15).setValue(now);
+      return { success: true, message: 'Laporan disetujui. Poin ' + s.nama + ' kini ' + baru + '/100 (' + status + ').' };
     });
   });
 }
@@ -384,6 +463,22 @@ function tolakKonseling(token, id, alasan) {
       sk.getRange(k._row, 8).setValue('Ditolak');
       sk.getRange(k._row, 10).setValue(String(alasan || '').trim().slice(0, 200) || 'Silakan ajukan ulang atau temui Guru BK.');
       return { success: true, message: 'Pengajuan ditolak dan alasan sudah dikirim ke siswa.' };
+    });
+  });
+}
+function selesaikanKonseling(token, id, catatanBK) {
+  return guard_(() => {
+    requireSession_(token, ['Guru_BK']);
+    return withLock_(() => {
+      const k = konseling_().filter(x => x.id === String(id))[0];
+      if (!k) throw new Error('Pengajuan tidak ditemukan.');
+      if (k.status !== 'Disetujui & Terjadwal') throw new Error('Hanya konseling terjadwal yang bisa ditandai selesai.');
+      const sk = ss_().getSheetByName(SHEET.KONSELING);
+      sk.getRange(k._row, 8).setValue('Selesai');
+      const ket = String(catatanBK || '').trim().slice(0, 200);
+      if (ket) sk.getRange(k._row, 10).setValue(ket);
+      else if (!k.catatanBK || k.catatanBK === '-') sk.getRange(k._row, 10).setValue('Sesi konseling telah selesai dilaksanakan.');
+      return { success: true, message: 'Sesi konseling ditandai selesai.' };
     });
   });
 }

@@ -169,9 +169,13 @@
             <button type="button" class="btn btn-outline-primary rounded-pill px-3 fw-semibold" onclick="refreshAllData()">
               <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i> Segarkan
             </button>
+            <button type="button" class="btn btn-outline-warning text-dark rounded-pill px-3 fw-semibold" onclick="openVerifikasiLaporanModal()">
+              <i class="bi bi-inbox-fill me-1" aria-hidden="true"></i>
+              Laporan Guru (<span id="bkHeaderLaporanCount">0</span>)
+            </button>
             <button type="button" class="btn btn-outline-dark rounded-pill px-3 fw-semibold" onclick="openKonselingListModal()">
               <i class="bi bi-chat-dots-fill me-1 text-primary" aria-hidden="true"></i>
-              Antrean Konseling (<span id="bkHeaderKonselingCount">0</span>)
+              Konseling (<span id="bkHeaderKonselingCount">0</span>)
             </button>
             <button type="button" class="btn btn-primary-action" onclick="openCatatPoinModal()">
               <i class="bi bi-plus-circle-fill me-1" aria-hidden="true"></i> Catat Pelanggaran / Prestasi
@@ -288,10 +292,15 @@
 
           <div class="p-3 bg-light border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div class="small text-muted" id="bkTotalSummaryText">Menampilkan <strong>0</strong> siswa</div>
-            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
-                    id="btnToggleTabelBK" aria-expanded="true" onclick="toggleTabelBK()">
-              <i class="bi bi-chevron-up me-1" aria-hidden="true"></i> Sembunyikan Daftar
-            </button>
+            <div class="d-flex flex-wrap gap-2">
+              <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 fw-semibold" onclick="exportStudentsCsv()">
+                <i class="bi bi-download me-1" aria-hidden="true"></i> Unduh CSV
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                      id="btnToggleTabelBK" aria-expanded="true" onclick="toggleTabelBK()">
+                <i class="bi bi-chevron-up me-1" aria-hidden="true"></i> Sembunyikan Daftar
+              </button>
+            </div>
           </div>
         </div>
 
@@ -430,7 +439,7 @@
             <p class="text-muted small mb-0" id="guruSubHeader">Monitoring Siswa Binaan SMKN 1 Kota Binjai</p>
           </div>
           <button type="button" class="btn btn-primary-action" onclick="openCatatPoinModal()">
-            <i class="bi bi-plus-circle-fill me-1" aria-hidden="true"></i> Catat Pelanggaran / Prestasi
+            <i class="bi bi-send-plus-fill me-1" aria-hidden="true"></i> Ajukan Laporan Siswa
           </button>
         </div>
 
@@ -471,7 +480,7 @@
                 <div>
                   <span class="text-muted small fw-semibold d-block mb-1">Laporan Saya</span>
                   <h2 class="fw-bold text-success mb-0 tabular-nums" id="guruStatLaporan">0</h2>
-                  <small class="text-muted">Catatan yang Anda input</small>
+                  <small class="text-muted" id="guruStatLaporanDetail">Menunggu verifikasi BK</small>
                 </div>
                 <div class="stat-icon bg-success-subtle text-success-emphasis" aria-hidden="true">
                   <i class="bi bi-file-earmark-check-fill"></i>
@@ -515,6 +524,29 @@
                 </tr>
               </thead>
               <tbody id="guruTabelSiswaBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="content-card mt-4">
+          <div class="p-3 p-md-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <h2 class="h5 fw-bold text-dark mb-0">Riwayat Laporan Saya ke BK</h2>
+              <small class="text-muted">Poin siswa diperbarui setelah Guru BK menyetujui laporan.</small>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover table-stack mb-0">
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Siswa</th>
+                  <th>Jenis &amp; Usulan</th>
+                  <th>Keterangan</th>
+                  <th>Status BK</th>
+                </tr>
+              </thead>
+              <tbody id="guruTabelLaporanBody"></tbody>
             </table>
           </div>
         </div>
@@ -656,6 +688,10 @@
         </div>
         <form onsubmit="handleSimpanCatatanPoin(event)">
           <div class="modal-body">
+            <div id="catatPoinRoleHint" style="display: none;" class="alert alert-info small rounded-3 py-2 mb-3">
+              <i class="bi bi-info-circle-fill me-1" aria-hidden="true"></i>
+              Laporan akan masuk ke antrean <strong>Guru BK</strong> untuk diverifikasi sebelum poin siswa berubah.
+            </div>
             <div class="mb-3">
               <label for="inputCatatanSiswa" class="form-label small fw-semibold">Pilih Siswa</label>
               <select class="form-select rounded-3" id="inputCatatanSiswa" required>
@@ -714,6 +750,57 @@
         </div>
         <div class="modal-body p-3 p-md-4">
           <div id="daftarPengajuanKonselingContainer" class="d-flex flex-column gap-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2B: VERIFIKASI LAPORAN GURU (KHUSUS GURU BK) -->
+  <div class="modal fade" id="modalVerifikasiLaporan" tabindex="-1" aria-labelledby="modalVerifikasiTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header bg-dark text-white rounded-top-4">
+          <h2 class="modal-title h5 fw-bold" id="modalVerifikasiTitle">
+            <i class="bi bi-inbox-fill me-2 text-warning" aria-hidden="true"></i>Verifikasi Laporan Guru
+          </h2>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
+        </div>
+        <div class="modal-body p-3 p-md-4">
+          <div id="daftarLaporanGuruContainer" class="d-flex flex-column gap-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2C: DETAIL RIWAYAT SISWA (KHUSUS GURU BK) -->
+  <div class="modal fade" id="modalRiwayatSiswa" tabindex="-1" aria-labelledby="modalRiwayatSiswaTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+      <div class="modal-content rounded-4 border-0 shadow-lg">
+        <div class="modal-header">
+          <h2 class="modal-title h5 fw-bold" id="modalRiwayatSiswaTitle">
+            <i class="bi bi-clock-history text-primary me-2" aria-hidden="true"></i>Detail &amp; Riwayat Siswa
+          </h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+        </div>
+        <div class="modal-body p-3 p-md-4">
+          <div id="riwayatSiswaSummary" class="p-3 rounded-4 bg-light border mb-3"></div>
+          <h3 class="h6 fw-bold mb-2">Riwayat Catatan Poin</h3>
+          <div class="table-responsive mb-4 border rounded-3">
+            <table class="table table-sm table-hover table-stack mb-0">
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Jenis</th>
+                  <th>Keterangan</th>
+                  <th>Pelapor</th>
+                  <th class="text-end">Perubahan</th>
+                </tr>
+              </thead>
+              <tbody id="riwayatSiswaCatatanBody"></tbody>
+            </table>
+          </div>
+          <h3 class="h6 fw-bold mb-2">Riwayat Konseling</h3>
+          <div id="riwayatSiswaKonselingList" class="d-flex flex-column gap-2"></div>
         </div>
       </div>
     </div>

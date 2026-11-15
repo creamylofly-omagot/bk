@@ -87,6 +87,30 @@
           }
         ];
       }
+      case 'ajukanLaporanGuru': {
+        const p = args[1] || {};
+        return [
+          'ebk_ajukan_laporan_guru',
+          {
+            p_token: args[0],
+            p_id_siswa: p.idSiswa,
+            p_jenis: p.jenis,
+            p_poin: Number(p.poin),
+            p_keterangan: p.keterangan
+          }
+        ];
+      }
+      case 'verifikasiLaporanGuru':
+        return [
+          'ebk_verifikasi_laporan_guru',
+          {
+            p_token: args[0],
+            p_id_laporan: args[1],
+            p_keputusan: args[2],
+            p_bobot_final: Number(args[3]),
+            p_catatan_bk: args[4] || ''
+          }
+        ];
       case 'updateTindakanSiswa':
         return [
           'ebk_update_tindakan_siswa',
@@ -108,6 +132,8 @@
         ];
       case 'tolakKonseling':
         return ['ebk_tolak_konseling', { p_token: args[0], p_id: args[1], p_alasan: args[2] || '' }];
+      case 'selesaikanKonseling':
+        return ['ebk_selesaikan_konseling', { p_token: args[0], p_id: args[1], p_catatan_bk: args[2] || '' }];
       case 'saveUserAccount': {
         const p = args[1] || {};
         return [

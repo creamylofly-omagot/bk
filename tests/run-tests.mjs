@@ -59,10 +59,13 @@ function runStaticHtmlAndContractChecks() {
     ['jalankanSetup', ['tok']],
     ['getAllAppData', ['tok']],
     ['tambahCatatanPoin', ['tok', { idSiswa: 'SW01', jenis: 'Prestasi', poin: 10, keterangan: 'ok' }]],
+    ['ajukanLaporanGuru', ['tok', { idSiswa: 'SW01', jenis: 'Pelanggaran', poin: 10, keterangan: 'ok' }]],
+    ['verifikasiLaporanGuru', ['tok', 'LP-3001', 'Setujui', 10, 'ok']],
     ['updateTindakanSiswa', ['tok', 'SW01', 'Tidak', false]],
     ['ajukanKonseling', ['tok', { topik: 'Pribadi & Sosial', cerita: 'halo' }]],
     ['setujuiKonseling', ['tok', 'KS-2001', 'Besok', 'OK']],
     ['tolakKonseling', ['tok', 'KS-2001', 'Maaf']],
+    ['selesaikanKonseling', ['tok', 'KS-2001', 'Selesai']],
     ['saveUserAccount', ['tok', { mode: 'add', id: '', role: 'Murid', nama: 'A', kelasInfo: 'B', password: '123456', terkaitIdSiswa: '' }]],
     ['deleteUserAccount', ['tok', 'SW07']]
   ];
@@ -183,6 +186,10 @@ async function runBackendBehaviorTests() {
   assert.equal(approve.success, true);
   const doubleProcess = await LocalBackend.dispatch('tolakKonseling', [bk.token, 'KS-2001', 'Batal']);
   assert.equal(doubleProcess.success, false);
+  const finishKs = await LocalBackend.dispatch('selesaikanKonseling', [bk.token, 'KS-2001', 'Sudah dibimbing']);
+  assert.equal(finishKs.success, true);
+  const doubleFinish = await LocalBackend.dispatch('selesaikanKonseling', [bk.token, 'KS-2001', 'Lagi']);
+  assert.equal(doubleFinish.success, false);
 
   // 7. Role isolation: Ortu & Guru
   const ot01 = await LocalBackend.dispatch('loginUser', ['OT01', '123456']);
@@ -197,6 +204,44 @@ async function runBackendBehaviorTests() {
   assert.equal(grData.konseling.length, 0);
   assert.equal(grData.users.length, 0);
   assert.ok(grData.catatan.every(c => c.pelapor === 'Samsudin, M.Pd'));
+
+  // 7b. Option A: Guru cannot change points directly; must submit report for BK verification
+  const directDenied = await LocalBackend.dispatch('tambahCatatanPoin', [
+    gr01.token,
+    { idSiswa: 'SW03', jenis: 'Pelanggaran', poin: 30, keterangan: 'Langsung' }
+  ]);
+  assert.equal(directDenied.success, false);
+
+  const rep1 = await LocalBackend.dispatch('ajukanLaporanGuru', [
+    gr01.token,
+    { idSiswa: 'SW03', jenis: 'Pelanggaran', poin: 40, keterangan: 'Tidak ikut praktikum' }
+  ]);
+  assert.equal(rep1.success, true);
+
+  const rep2 = await LocalBackend.dispatch('ajukanLaporanGuru', [
+    gr01.token,
+    { idSiswa: 'SW05', jenis: 'Pelanggaran', poin: 20, keterangan: 'Salah lapor' }
+  ]);
+  assert.equal(rep2.success, true);
+
+  let beforeVerify = await LocalBackend.dispatch('getAllAppData', [bk.token]);
+  assert.equal(beforeVerify.students.find(s => s.id === 'SW03').poin, 100);
+  assert.equal(beforeVerify.laporan.length, 2);
+
+  const rejRep = await LocalBackend.dispatch('verifikasiLaporanGuru', [bk.token, 'LP-3002', 'Tolak', 0, 'Keliru siswa']);
+  assert.equal(rejRep.success, true);
+  const appRep = await LocalBackend.dispatch('verifikasiLaporanGuru', [bk.token, 'LP-3001', 'Setujui', 25, 'Sesuai tatib']);
+  assert.equal(appRep.success, true);
+  const dupRep = await LocalBackend.dispatch('verifikasiLaporanGuru', [bk.token, 'LP-3001', 'Tolak', 0, 'Ulang']);
+  assert.equal(dupRep.success, false);
+
+  let afterVerify = await LocalBackend.dispatch('getAllAppData', [bk.token]);
+  const sw03 = afterVerify.students.find(s => s.id === 'SW03');
+  assert.equal(sw03.poin, 75);
+  assert.equal(sw03.statusSP, 'SP 1');
+  assert.equal(afterVerify.students.find(s => s.id === 'SW05').poin, 95);
+  assert.equal(afterVerify.catatan[0].pelapor, 'Samsudin, M.Pd');
+  assert.equal(afterVerify.catatan[0].perubahanPoin, -25);
 
   // 8. Password change & logout invalidates token
   const chPw = await LocalBackend.dispatch('ubahSandi', [sw01.token, '123456', 'sandibaru99']);

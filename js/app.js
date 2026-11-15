@@ -7,7 +7,7 @@
   let allAccounts = [];
   let selectedLoginRole = 'Murid';
   let currentUser = null;
-  let appData = { users: [], students: [], catatan: [], konseling: [] };
+  let appData = { users: [], students: [], catatan: [], konseling: [], laporan: [] };
   let isSettingsOpen = false;
   let isTabelBKExpanded = true;
   let bkStatusFilter = 'all'; // 'all' | 'sp' | 'skorsing'
@@ -341,7 +341,7 @@
       const res = await BackendAPI.call('getAllAppData', sessionToken);
       hideLoading();
       if (res.success) {
-        appData = res;
+        appData = Object.assign({ users: [], students: [], catatan: [], konseling: [], laporan: [] }, res);
         currentUser = res.me;
         populateStudentSelectOptions();
         renderActiveRoleView();
@@ -400,6 +400,8 @@
     $('statKonseling').innerText = pendingKonseling.length;
     $('bkHeaderKonselingCount').innerText = pendingKonseling.length;
     $('ovalKonselingCount').innerText = pendingKonseling.length;
+    const pendingLaporan = (appData.laporan || []).filter(l => l.status === 'Menunggu');
+    $('bkHeaderLaporanCount').innerText = pendingLaporan.length;
 
     const skorsingCount = students.filter(s => s.skorsing === 'Ya').length;
     $('statSkorsing').innerText = skorsingCount;
@@ -448,7 +450,10 @@
           <td>${getPoinChipHtml(s.poin)}</td>
           <td>${getSPBadgeHtml(s.statusSP)}</td>
           <td class="small">${ketText}</td>
-          <td class="text-end">
+          <td class="text-end text-nowrap">
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 me-1" data-riwayat-id="${esc(s.id)}">
+              Riwayat
+            </button>
             <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" data-tindakan-id="${esc(s.id)}">
               Tindakan
             </button>
@@ -472,6 +477,192 @@
       : '<i class="bi bi-chevron-down me-1" aria-hidden="true"></i> Tampilkan Daftar';
   }
 
+  function getFilteredStudentsBK() {
+    const keyword = $('bkSearchKelasInput').value.toLowerCase().trim();
+    return appData.students.filter(s => {
+      const matchText = s.kelasInfo.toLowerCase().includes(keyword) || s.nama.toLowerCase().includes(keyword);
+      if (!matchText) return false;
+      if (bkStatusFilter === 'sp') return s.statusSP !== 'Aman';
+      if (bkStatusFilter === 'skorsing') return s.skorsing === 'Ya';
+      return true;
+    });
+  }
+
+  function csvCell(v) {
+    let s = String(v == null ? '' : v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+
+  function exportStudentsCsv() {
+    const rows = getFilteredStudentsBK();
+    if (rows.length === 0) {
+      showToast('Tidak ada data siswa untuk diunduh.', 'warning');
+      return;
+    }
+    const header = ['ID', 'Nama Siswa', 'Kelas', 'Poin', 'Status SP', 'Skorsing'];
+    const lines = [header.map(csvCell).join(',')];
+    rows.forEach(s => {
+      lines.push([s.id, s.nama, s.kelasInfo, s.poin, s.statusSP, s.skorsing].map(csvCell).join(','));
+    });
+    const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'data-poin-siswa-bk.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Mengunduh ${rows.length} data siswa (CSV).`);
+  }
+
+  function openRiwayatSiswaModal(idSiswa) {
+    const s = appData.students.find(x => x.id === idSiswa);
+    if (!s) return;
+    $('riwayatSiswaSummary').innerHTML = `
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+          <h3 class="h6 fw-bold text-dark mb-1">${esc(s.nama)}</h3>
+          <span class="badge bg-white text-dark border">${esc(s.kelasInfo)}</span>
+          <span class="badge ${s.skorsing === 'Ya' ? 'bg-danger' : 'bg-secondary-subtle text-dark'} ms-1">
+            Skorsing: ${esc(s.skorsing)}
+          </span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          ${getPoinChipHtml(s.poin)}
+          ${getSPBadgeHtml(s.statusSP)}
+        </div>
+      </div>
+    `;
+
+    const catatanRows = appData.catatan.filter(c => String(c.idSiswa) === String(s.id));
+    const tbody = $('riwayatSiswaCatatanBody');
+    tbody.innerHTML = '';
+    if (catatanRows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">Belum ada catatan poin untuk siswa ini.</td></tr>';
+    } else {
+      catatanRows.forEach(c => {
+        const isPositive = c.jenis !== 'Pelanggaran';
+        const deltaStr = c.perubahanPoin > 0 ? '+' + c.perubahanPoin : String(c.perubahanPoin);
+        tbody.innerHTML += `
+          <tr>
+            <td class="small text-muted text-nowrap">${esc(c.tanggal)}</td>
+            <td><span class="badge ${isPositive ? 'bg-success-subtle text-success-emphasis' : 'bg-danger-subtle text-danger'}">${esc(c.jenis)}</span></td>
+            <td class="small">${esc(c.keterangan)}</td>
+            <td class="small text-muted">${esc(c.pelapor)}</td>
+            <td class="text-end fw-bold tabular-nums ${isPositive ? 'text-success' : 'text-danger'}">${esc(deltaStr)}</td>
+          </tr>
+        `;
+      });
+    }
+
+    const ksList = $('riwayatSiswaKonselingList');
+    const myKs = appData.konseling.filter(k => String(k.idSiswa) === String(s.id));
+    ksList.innerHTML = '';
+    if (myKs.length === 0) {
+      ksList.innerHTML = '<small class="text-muted">Belum ada riwayat pengajuan konseling.</small>';
+    } else {
+      myKs.forEach(k => {
+        ksList.innerHTML += `
+          <div class="p-2 px-3 rounded-3 border bg-light small">
+            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap fw-semibold">
+              <span>${esc(k.topik)} • <span class="text-muted fw-normal">${esc(k.tanggal)}</span></span>
+              <span class="badge bg-secondary">${esc(k.status)}</span>
+            </div>
+            <div class="mt-1 fst-italic">"${esc(k.cerita)}"</div>
+            <div class="text-muted mt-1">Jadwal: ${esc(k.jadwal)} | Catatan BK: ${esc(k.catatanBK)}</div>
+          </div>
+        `;
+      });
+    }
+
+    bootstrap.Modal.getOrCreateInstance($('modalRiwayatSiswa')).show();
+  }
+
+  function openVerifikasiLaporanModal() {
+    const container = $('daftarLaporanGuruContainer');
+    const list = appData.laporan || [];
+    container.innerHTML = '';
+
+    if (list.length === 0) {
+      container.innerHTML = '<div class="text-center text-muted py-4">Belum ada laporan masuk dari Guru / Wali Kelas.</div>';
+    } else {
+      list.forEach(item => {
+        const isPending = item.status === 'Menunggu';
+        const isRejected = item.status === 'Ditolak';
+        const card = document.createElement('div');
+        card.className = `p-3 rounded-4 border ${isPending ? 'bg-warning-subtle border-warning' : 'bg-light'}`;
+
+        card.innerHTML = `
+          <div class="d-flex justify-content-between align-items-start gap-2 mb-2 flex-wrap">
+            <div>
+              <h6 class="fw-bold mb-0 text-dark">${esc(item.namaSiswa)} <span class="badge bg-white text-dark border ms-1">${esc(item.kelas)}</span></h6>
+              <small class="text-muted">Pelapor: <strong>${esc(item.pelapor)}</strong> • ${esc(item.tanggal)}</small>
+            </div>
+            <span class="badge ${isPending ? 'bg-warning text-dark' : isRejected ? 'bg-danger' : 'bg-success'} rounded-pill px-3">
+              ${esc(item.status)}
+            </span>
+          </div>
+          <div class="bg-white p-3 rounded-3 border mb-3">
+            <span class="badge ${item.jenis === 'Prestasi' ? 'bg-success-subtle text-success-emphasis' : 'bg-danger-subtle text-danger'} me-2">
+              ${esc(item.jenis)} (${item.jenis === 'Prestasi' ? '+' : '-'}${esc(item.bobotUsulan)} usulan)
+            </span>
+            <span class="text-dark">${esc(item.keterangan)}</span>
+          </div>
+          ${isPending ? `
+            <div class="row g-2 align-items-end">
+              <div class="col-12 col-md-3">
+                <label class="form-label small fw-semibold mb-1" for="bobotFinal_${esc(item.id)}">Bobot Final (1–100)</label>
+                <input type="number" id="bobotFinal_${esc(item.id)}" class="form-control form-control-sm" min="1" max="100" value="${esc(item.bobotUsulan)}">
+              </div>
+              <div class="col-12 col-md-5">
+                <label class="form-label small fw-semibold mb-1" for="catatanLap_${esc(item.id)}">Catatan / Alasan BK</label>
+                <input type="text" id="catatanLap_${esc(item.id)}" class="form-control form-control-sm" placeholder="Opsional (alasan bila ditolak)">
+              </div>
+              <div class="col-12 col-md-4 d-grid gap-1">
+                <button type="button" class="btn btn-primary btn-sm fw-semibold" data-approve-lp="${esc(item.id)}">
+                  Setujui &amp; Terapkan Poin
+                </button>
+                <button type="button" class="btn btn-outline-danger btn-sm" data-reject-lp="${esc(item.id)}">
+                  Tolak Laporan
+                </button>
+              </div>
+            </div>
+          ` : `
+            <div class="small ${isRejected ? 'text-danger' : 'text-success'} fw-semibold">
+              ${isRejected ? 'Ditolak' : 'Disetujui (' + esc(item.bobotDisetujui) + ' poin)'} oleh ${esc(item.diprosesOleh)} (${esc(item.tanggalProses)}) — ${esc(item.catatanBK)}
+            </div>
+          `}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    bootstrap.Modal.getOrCreateInstance($('modalVerifikasiLaporan')).show();
+  }
+
+  async function prosesVerifikasiLaporan(idLaporan, keputusan) {
+    const bobotEl = $('bobotFinal_' + idLaporan);
+    const catEl = $('catatanLap_' + idLaporan);
+    const bobotFinal = bobotEl ? Number(bobotEl.value) : 10;
+    const catatanBK = catEl ? catEl.value.trim() : '';
+
+    showLoading(keputusan === 'Setujui' ? 'Menyetujui laporan & memperbarui poin...' : 'Menolak laporan...');
+    try {
+      const res = await BackendAPI.call('verifikasiLaporanGuru', sessionToken, idLaporan, keputusan, bobotFinal, catatanBK);
+      hideLoading();
+      showToast(res.message, res.success ? 'success' : 'error');
+      if (res.success) {
+        bootstrap.Modal.getInstance($('modalVerifikasiLaporan')).hide();
+        refreshAllData();
+      }
+    } catch (err) {
+      hideLoading();
+      showToast('Gagal memproses laporan: ' + err.message, 'error');
+    }
+  }
+
   function openKonselingListModal() {
     const container = $('daftarPengajuanKonselingContainer');
     container.innerHTML = '';
@@ -481,9 +672,11 @@
     } else {
       appData.konseling.forEach(item => {
         const isPending = item.status === 'Menunggu';
+        const isScheduled = item.status === 'Disetujui & Terjadwal';
         const isRejected = item.status === 'Ditolak';
+        const isDone = item.status === 'Selesai';
         const card = document.createElement('div');
-        card.className = `p-3 rounded-4 border ${isPending ? 'bg-info-subtle border-info' : 'bg-light'}`;
+        card.className = `p-3 rounded-4 border ${isPending ? 'bg-info-subtle border-info' : isScheduled ? 'bg-success-subtle border-success' : 'bg-light'}`;
 
         card.innerHTML = `
           <div class="d-flex justify-content-between align-items-start gap-2 mb-2 flex-wrap">
@@ -491,7 +684,7 @@
               <h6 class="fw-bold mb-0 text-dark">${esc(item.namaSiswa)} <span class="badge bg-white text-dark border ms-1">${esc(item.kelas)}</span></h6>
               <small class="text-muted">Topik: <strong>${esc(item.topik)}</strong> • ${esc(item.tanggal)}</small>
             </div>
-            <span class="badge ${isPending ? 'bg-warning text-dark' : isRejected ? 'bg-danger' : 'bg-success'} rounded-pill px-3">
+            <span class="badge ${isPending ? 'bg-warning text-dark' : isRejected ? 'bg-danger' : isDone ? 'bg-secondary' : 'bg-success'} rounded-pill px-3">
               ${esc(item.status)}
             </span>
           </div>
@@ -510,17 +703,31 @@
               </div>
               <div class="col-12 col-md-3 d-grid gap-1">
                 <button type="button" class="btn btn-primary btn-sm fw-semibold" data-approve-ks="${esc(item.id)}">
-                  Setujui & Jadwalkan
+                  Setujui &amp; Jadwalkan
                 </button>
                 <button type="button" class="btn btn-outline-danger btn-sm" data-reject-ks="${esc(item.id)}">
                   Tolak Pengajuan
                 </button>
               </div>
             </div>
+          ` : isScheduled ? `
+            <div class="row g-2 align-items-end">
+              <div class="col-12 col-md-8 small text-success fw-semibold">
+                <i class="bi bi-calendar-check me-1" aria-hidden="true"></i>
+                Jadwal: ${esc(item.jadwal)} — (${esc(item.catatanBK)})
+                <input type="text" id="hasilKsInput_${esc(item.id)}" class="form-control form-control-sm mt-2"
+                       placeholder="Catatan hasil konseling (opsional) sebelum ditandai selesai...">
+              </div>
+              <div class="col-12 col-md-4 d-grid">
+                <button type="button" class="btn btn-success btn-sm fw-semibold" data-finish-ks="${esc(item.id)}">
+                  <i class="bi bi-check2-all me-1" aria-hidden="true"></i> Tandai Selesai
+                </button>
+              </div>
+            </div>
           ` : `
-            <div class="small ${isRejected ? 'text-danger' : 'text-success'} fw-semibold">
-              <i class="bi ${isRejected ? 'bi-x-circle' : 'bi-calendar-check'} me-1" aria-hidden="true"></i>
-              ${isRejected ? 'Ditolak' : 'Jadwal: ' + esc(item.jadwal)} — (${esc(item.catatanBK)})
+            <div class="small ${isRejected ? 'text-danger' : 'text-secondary'} fw-semibold">
+              <i class="bi ${isRejected ? 'bi-x-circle' : 'bi-check-circle-fill'} me-1" aria-hidden="true"></i>
+              ${isRejected ? 'Ditolak' : 'Selesai (' + esc(item.jadwal) + ')'} — (${esc(item.catatanBK)})
             </div>
           `}
         `;
@@ -573,6 +780,24 @@
     }
   }
 
+  async function prosesSelesaikanKonseling(idKonseling) {
+    const input = $('hasilKsInput_' + idKonseling);
+    const hasil = input ? input.value.trim() : '';
+    showLoading('Menyelesaikan sesi konseling...');
+    try {
+      const res = await BackendAPI.call('selesaikanKonseling', sessionToken, idKonseling, hasil);
+      hideLoading();
+      showToast(res.message, res.success ? 'success' : 'error');
+      if (res.success) {
+        bootstrap.Modal.getInstance($('modalPengajuanKonseling')).hide();
+        refreshAllData();
+      }
+    } catch (err) {
+      hideLoading();
+      showToast('Gagal: ' + err.message, 'error');
+    }
+  }
+
   // =========================================================================
   // DASHBOARD MURID & ORANG TUA
   // =========================================================================
@@ -594,13 +819,16 @@
     $('muridJumlahSP').innerText = siswa.statusSP === 'Aman' ? '0 (Nihil)' : siswa.statusSP;
 
     const myKonseling = appData.konseling.filter(k => String(k.idSiswa) === String(siswa.id));
-    const latestScheduled = myKonseling.find(k => String(k.status).indexOf('Disetujui') === 0);
+    const latestScheduled = myKonseling.find(k => k.status === 'Disetujui & Terjadwal');
     if (latestScheduled) {
       $('muridJadwalKonseling').innerText = latestScheduled.jadwal;
       $('muridStatusKonselingBadge').innerText = 'Disetujui Guru BK';
     } else if (myKonseling.some(k => k.status === 'Menunggu')) {
       $('muridJadwalKonseling').innerText = 'Menunggu persetujuan guru BK';
       $('muridStatusKonselingBadge').innerText = 'Dalam Antrean';
+    } else if (myKonseling.some(k => k.status === 'Selesai')) {
+      $('muridJadwalKonseling').innerText = 'Sesi terakhir selesai';
+      $('muridStatusKonselingBadge').innerText = myKonseling[0].catatanBK || 'Selesai';
     } else if (myKonseling.length > 0) {
       $('muridJadwalKonseling').innerText = 'Pengajuan ditolak';
       $('muridStatusKonselingBadge').innerText = myKonseling[0].catatanBK || '-';
@@ -617,12 +845,13 @@
       myKonseling.forEach(k => {
         const isWait = k.status === 'Menunggu';
         const isRejected = k.status === 'Ditolak';
+        const isDone = k.status === 'Selesai';
         listEl.innerHTML += `
           <div class="p-3 rounded-3 border bg-light small">
             <div class="d-flex justify-content-between align-items-center gap-2 fw-semibold flex-wrap">
               <span>${esc(k.topik)}</span>
-              <span class="badge ${isWait ? 'bg-warning text-dark' : isRejected ? 'bg-danger' : 'bg-success'}">
-                ${isWait ? 'Menunggu persetujuan guru BK' : isRejected ? 'Ditolak: ' + esc(k.catatanBK) : 'Terjadwal: ' + esc(k.jadwal)}
+              <span class="badge ${isWait ? 'bg-warning text-dark' : isRejected ? 'bg-danger' : isDone ? 'bg-secondary' : 'bg-success'}">
+                ${isWait ? 'Menunggu persetujuan guru BK' : isRejected ? 'Ditolak: ' + esc(k.catatanBK) : isDone ? 'Selesai: ' + esc(k.catatanBK) : 'Terjadwal: ' + esc(k.jadwal)}
               </span>
             </div>
             <div class="text-muted mt-1">"${esc(k.cerita)}"</div>
@@ -715,7 +944,10 @@
     $('guruStatBinaan').innerText = siswaTampil.length;
     $('guruLabelKelasBinaan').innerText = binaan.length > 0 ? `Kelas ${kelasMatch}` : 'Seluruh Siswa Sekolah';
     $('guruStatPerhatian').innerText = siswaTampil.filter(s => s.statusSP !== 'Aman').length;
-    $('guruStatLaporan').innerText = appData.catatan.filter(c => c.pelapor === currentUser.nama).length;
+    const myLaporan = appData.laporan || [];
+    const pendingCount = myLaporan.filter(l => l.status === 'Menunggu').length;
+    $('guruStatLaporan').innerText = myLaporan.length;
+    $('guruStatLaporanDetail').innerText = `${pendingCount} menunggu verifikasi BK`;
 
     const btnBinaan = $('btnGuruToggleBinaan');
     if (binaan.length > 0) {
@@ -736,6 +968,41 @@
     if (uniqueClasses.includes(prevVal)) filterSelect.value = prevVal;
 
     renderTabelGuru();
+    renderTabelLaporanGuru();
+  }
+
+  function renderTabelLaporanGuru() {
+    const tbody = $('guruTabelLaporanBody');
+    if (!tbody) return;
+    const list = appData.laporan || [];
+    tbody.innerHTML = '';
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Belum ada laporan yang diajukan ke Guru BK.</td></tr>';
+      return;
+    }
+    list.forEach(l => {
+      const isWait = l.status === 'Menunggu';
+      const isRejected = l.status === 'Ditolak';
+      const badgeCls = isWait ? 'bg-warning text-dark' : isRejected ? 'bg-danger' : 'bg-success';
+      const statusText = isWait
+        ? 'Menunggu Verifikasi BK'
+        : isRejected
+          ? `Ditolak (${l.catatanBK})`
+          : `Disetujui (${l.bobotDisetujui} poin)`;
+      tbody.innerHTML += `
+        <tr>
+          <td class="small text-muted text-nowrap">${esc(l.tanggal)}</td>
+          <td><span class="fw-semibold">${esc(l.namaSiswa)}</span> <span class="badge bg-light text-dark border">${esc(l.kelas)}</span></td>
+          <td>
+            <span class="badge ${l.jenis === 'Prestasi' ? 'bg-success-subtle text-success-emphasis' : 'bg-danger-subtle text-danger'}">
+              ${esc(l.jenis)} (${l.jenis === 'Prestasi' ? '+' : '-'}${esc(l.bobotUsulan)})
+            </span>
+          </td>
+          <td class="small">${esc(l.keterangan)}</td>
+          <td><span class="badge ${badgeCls}">${esc(statusText)}</span></td>
+        </tr>
+      `;
+    });
   }
 
   function toggleGuruBinaanOnly() {
@@ -794,6 +1061,11 @@
 
   function openCatatPoinModal() {
     $('inputCatatanKeterangan').value = '';
+    const isGuru = currentUser && currentUser.role === 'Guru';
+    $('modalCatatPoinTitle').innerHTML = isGuru
+      ? '<i class="bi bi-send-plus text-primary me-2" aria-hidden="true"></i>Ajukan Laporan Siswa ke BK'
+      : '<i class="bi bi-journal-plus text-primary me-2" aria-hidden="true"></i>Catat Pelanggaran / Prestasi';
+    $('catatPoinRoleHint').style.display = isGuru ? 'block' : 'none';
     bootstrap.Modal.getOrCreateInstance($('modalCatatPoin')).show();
   }
 
@@ -808,10 +1080,12 @@
     const jenis = document.querySelector('input[name="jenisCatatan"]:checked').value;
     const poin = $('inputCatatanPoin').value;
     const keterangan = $('inputCatatanKeterangan').value.trim();
+    const isGuru = currentUser && currentUser.role === 'Guru';
+    const actionName = isGuru ? 'ajukanLaporanGuru' : 'tambahCatatanPoin';
 
-    showLoading('Menyimpan catatan & menghitung ulang poin...');
+    showLoading(isGuru ? 'Mengirim laporan ke Guru BK...' : 'Menyimpan catatan & menghitung ulang poin...');
     try {
-      const res = await BackendAPI.call('tambahCatatanPoin', sessionToken, { idSiswa, jenis, poin, keterangan });
+      const res = await BackendAPI.call(actionName, sessionToken, { idSiswa, jenis, poin, keterangan });
       hideLoading();
       if (res.success) {
         bootstrap.Modal.getInstance($('modalCatatPoin')).hide();
@@ -1028,15 +1302,32 @@
   // EVENT BINDINGS & INIT
   // =========================================================================
   document.addEventListener('DOMContentLoaded', async () => {
-    ['bkTabelSiswaBody', 'muridTabelRiwayat', 'guruTabelSiswaBody', 'crudTabelUsersBody'].forEach(id => {
+    ['bkTabelSiswaBody', 'muridTabelRiwayat', 'guruTabelSiswaBody', 'guruTabelLaporanBody', 'crudTabelUsersBody', 'riwayatSiswaCatatanBody'].forEach(id => {
       const el = $(id);
       if (el) new MutationObserver(() => labelCells(el)).observe(el, { childList: true });
     });
 
     // Event delegation untuk tombol dinamis (hindari inline handler pada data dinamis)
     $('bkTabelSiswaBody').addEventListener('click', e => {
+      const riwayatBtn = e.target.closest('[data-riwayat-id]');
+      if (riwayatBtn) {
+        openRiwayatSiswaModal(riwayatBtn.getAttribute('data-riwayat-id'));
+        return;
+      }
       const btn = e.target.closest('[data-tindakan-id]');
       if (btn) openTindakanModal(btn.getAttribute('data-tindakan-id'));
+    });
+
+    $('daftarLaporanGuruContainer').addEventListener('click', e => {
+      const appBtn = e.target.closest('[data-approve-lp]');
+      if (appBtn) {
+        prosesVerifikasiLaporan(appBtn.getAttribute('data-approve-lp'), 'Setujui');
+        return;
+      }
+      const rejBtn = e.target.closest('[data-reject-lp]');
+      if (rejBtn) {
+        prosesVerifikasiLaporan(rejBtn.getAttribute('data-reject-lp'), 'Tolak');
+      }
     });
 
     $('daftarPengajuanKonselingContainer').addEventListener('click', e => {
@@ -1048,6 +1339,11 @@
       const rejectBtn = e.target.closest('[data-reject-ks]');
       if (rejectBtn) {
         prosesTolakKonseling(rejectBtn.getAttribute('data-reject-ks'));
+        return;
+      }
+      const finishBtn = e.target.closest('[data-finish-ks]');
+      if (finishBtn) {
+        prosesSelesaikanKonseling(finishBtn.getAttribute('data-finish-ks'));
       }
     });
 
@@ -1082,6 +1378,8 @@
     logoutUser,
     refreshAllData,
     openKonselingListModal,
+    openVerifikasiLaporanModal,
+    exportStudentsCsv,
     openCatatPoinModal,
     setBkStatusFilter,
     renderTabelSiswaBK,
