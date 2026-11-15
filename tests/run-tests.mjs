@@ -135,25 +135,32 @@ async function runBackendBehaviorTests() {
   assert.equal(blocked.success, false);
   assert.match(blocked.message, /Terlalu banyak percobaan/);
 
-  // 4. Guru BK login + CRUD + sequential ID + protections
+  // 4. Guru BK cannot manage accounts or database setup; Admin owns CRUD + sequential ID
   const bk = await LocalBackend.dispatch('loginUser', ['BK01', '123456']);
   assert.equal(bk.success, true);
 
+  const bkData = await LocalBackend.dispatch('getAllAppData', [bk.token]);
+  assert.equal(bkData.users.length, 0);
+  assert.equal(
+    (await LocalBackend.dispatch('saveUserAccount', [bk.token, { mode: 'add', role: 'Murid', nama: 'X', kelasInfo: 'Y', password: 'password123' }])).success,
+    false
+  );
+  assert.equal((await LocalBackend.dispatch('deleteUserAccount', [bk.token, 'SW03'])).success, false);
+  assert.equal((await LocalBackend.dispatch('jalankanSetup', [bk.token])).success, false);
+
+  const adm = await LocalBackend.dispatch('loginUser', ['admin123', '123admin']);
+  assert.equal(adm.success, true);
+  assert.equal(adm.user.role, 'Admin');
+  assert.equal((await LocalBackend.dispatch('jalankanSetup', [adm.token])).success, true);
+
   const addRes = await LocalBackend.dispatch('saveUserAccount', [
-    bk.token,
+    adm.token,
     { mode: 'add', role: 'Murid', nama: 'Siswa Uji', kelasInfo: 'XI RPL 10', password: 'password123' }
   ]);
   assert.equal(addRes.success, true);
 
-  const bkData = await LocalBackend.dispatch('getAllAppData', [bk.token]);
-  assert.ok(bkData.users.some(u => u.id === 'SW07' && u.kelasInfo === 'XI RPL 10'));
-
-  const delSelf = await LocalBackend.dispatch('deleteUserAccount', [bk.token, 'BK01']);
-  assert.equal(delSelf.success, false);
-
-  const delLinked = await LocalBackend.dispatch('deleteUserAccount', [bk.token, 'SW01']);
-  assert.equal(delLinked.success, false);
-
+  const admDataInit = await LocalBackend.dispatch('getAllAppData', [adm.token]);
+  assert.ok(admDataInit.users.some(u => u.id === 'SW07' && u.kelasInfo === 'XI RPL 10'));
   // 5. Points clamping & real delta + Pemulihan
   const clampUp = await LocalBackend.dispatch('tambahCatatanPoin', [
     bk.token,
@@ -251,17 +258,14 @@ async function runBackendBehaviorTests() {
   assert.equal(afterVerify.catatan[0].perubahanPoin, -25);
 
 
-  // 7c. Special Admin account (admin123 / 123admin) hidden from dropdown, full access & protected from Guru BK
-  assert.ok(afterVerify.users.every(u => u.id !== 'admin123'));
+  // 7c. Special Admin account (admin123 / 123admin) hidden from dropdown, full access & protected
+  assert.equal(afterVerify.users.length, 0);
   assert.equal((await LocalBackend.dispatch('deleteUserAccount', [bk.token, 'admin123'])).success, false);
   assert.equal(
     (await LocalBackend.dispatch('saveUserAccount', [bk.token, { mode: 'edit', id: 'admin123', role: 'Admin', nama: 'X', kelasInfo: 'Y' }])).success,
     false
   );
 
-  const adm = await LocalBackend.dispatch('loginUser', ['admin123', '123admin']);
-  assert.equal(adm.success, true);
-  assert.equal(adm.user.role, 'Admin');
   const admData = await LocalBackend.dispatch('getAllAppData', [adm.token]);
   assert.ok(admData.users.some(u => u.id === 'admin123'));
   assert.equal((await LocalBackend.dispatch('deleteUserAccount', [adm.token, 'admin123'])).success, false);

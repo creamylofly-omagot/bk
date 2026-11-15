@@ -328,7 +328,7 @@
     $('mainAppSection').style.display = 'block';
     $('navUserName').innerText = currentUser.nama.split(',')[0];
     $('navRoleBadge').innerText = ROLE_LABELS[currentUser.role] || currentUser.role.replace('_', ' ');
-    $('btnNavSettings').style.display = (currentUser.role === 'Guru_BK' || currentUser.role === 'Admin') ? 'inline-flex' : 'none';
+    $('btnNavSettings').style.display = currentUser.role === 'Admin' ? 'inline-flex' : 'none';
     $('adminControlBar').style.display = currentUser.role === 'Admin' ? 'block' : 'none';
     adminActiveView = 'bk';
     refreshAllData();
@@ -494,7 +494,7 @@
       $(id).style.display = 'none';
     });
 
-    const isOperator = currentUser.role === 'Guru_BK' || currentUser.role === 'Admin';
+    const isOperator = currentUser.role === 'Admin';
     const btnSettings = $('btnNavSettings');
     if (isSettingsOpen && isOperator) {
       btnSettings.classList.replace('btn-outline-secondary', 'btn-primary');
@@ -1314,6 +1314,7 @@
   // PENGATURAN (CRUD AKUN & SETUP DATABASE)
   // =========================================================================
   function toggleSettingsView() {
+    if (!currentUser || currentUser.role !== 'Admin') return;
     isSettingsOpen = !isSettingsOpen;
     renderActiveRoleView();
   }

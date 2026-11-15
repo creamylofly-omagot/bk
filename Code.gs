@@ -291,7 +291,7 @@ function ubahSandi(token, lama, baru) {
   }));
 }
 function jalankanSetup(token) {
-  return guard_(() => { requireSession_(token, ['Guru_BK', 'Admin']); setupDatabase_(); return { success: true, message: 'Struktur database sudah lengkap.' }; });
+  return guard_(() => { requireSession_(token, ['Admin']); setupDatabase_(); return { success: true, message: 'Struktur database sudah lengkap.' }; });
 }
 
 // ---------- API: data (disaring sesuai peran) ----------
@@ -302,7 +302,7 @@ function getAllAppData(token) {
     let students = all.filter(u => u.role === 'Murid');
     let catatan = catatan_(), konseling = konseling_(), laporan = [], users = [];
     if (me.role === 'Guru_BK' || me.role === 'Admin') {
-      users = all.filter(u => me.role === 'Admin' || u.role !== 'Admin').map(pub_);
+      users = me.role === 'Admin' ? all.map(pub_) : [];
       laporan = laporan_();
     } else if (me.role === 'Guru') {
       catatan = catatan.filter(c => c.pelapor === me.nama);
@@ -502,7 +502,7 @@ function selesaikanKonseling(token, id, catatanBK) {
 // ---------- API: kelola akun (hanya Guru BK) ----------
 function saveUserAccount(token, p) {
   return guard_(() => {
-    const me = requireSession_(token, ['Guru_BK', 'Admin']);
+    const me = requireSession_(token, ['Admin']);
     return withLock_(() => {
       p = p || {};
       const nama = String(p.nama || '').trim().slice(0, 100);
@@ -544,7 +544,7 @@ function saveUserAccount(token, p) {
 }
 function deleteUserAccount(token, userId) {
   return guard_(() => {
-    const me = requireSession_(token, ['Guru_BK', 'Admin']);
+    const me = requireSession_(token, ['Admin']);
     return withLock_(() => {
       const all = users_();
       const u = all.filter(x => x.id === String(userId))[0];

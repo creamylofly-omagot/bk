@@ -267,7 +267,7 @@
       }
 
       if (action === 'jalankanSetup') {
-        requireSession(db, args[0], ['Guru_BK', 'Admin']);
+        requireSession(db, args[0], ['Admin']);
         saveDb(db);
         return { success: true, message: 'Struktur database lokal sudah lengkap.' };
       }
@@ -281,7 +281,7 @@
         let users = [];
 
         if (me.role === 'Guru_BK' || me.role === 'Admin') {
-          users = db.users.filter(u => me.role === 'Admin' || u.role !== 'Admin').map(pub);
+          users = me.role === 'Admin' ? db.users.map(pub) : [];
           laporan = db.laporan.slice();
         } else if (me.role === 'Guru') {
           catatan = catatan.filter(c => c.pelapor === me.nama);
@@ -533,7 +533,7 @@
       }
 
       if (action === 'saveUserAccount') {
-        const me = requireSession(db, args[0], ['Guru_BK', 'Admin']);
+        const me = requireSession(db, args[0], ['Admin']);
         const p = args[1] || {};
         const nama = String(p.nama || '').trim().slice(0, 100);
         const kelasInfo = String(p.kelasInfo || '').trim().slice(0, 100);
@@ -587,7 +587,7 @@
       }
 
       if (action === 'deleteUserAccount') {
-        const me = requireSession(db, args[0], ['Guru_BK', 'Admin']);
+        const me = requireSession(db, args[0], ['Admin']);
         const userId = String(args[1] || '');
         const idx = db.users.findIndex(x => x.id === userId);
         if (idx < 0) throw new Error('Akun tidak ditemukan.');

@@ -461,7 +461,7 @@ SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 BEGIN
-  PERFORM public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
+  PERFORM public.ebk_require_session(p_token, ARRAY['Admin']);
   PERFORM public.ebk_seed_data();
   RETURN jsonb_build_object('success', true, 'message', 'Struktur database Supabase sudah lengkap.');
 EXCEPTION WHEN OTHERS THEN
@@ -490,9 +490,10 @@ DECLARE
   v_me := public.ebk_require_session(p_token);
 
   IF v_me.role IN ('Guru_BK', 'Admin') THEN
-    SELECT COALESCE(jsonb_agg(public.ebk_pub_user(u) ORDER BY u.created_at, u.id), '[]'::JSONB)
-    INTO v_users FROM public.ebk_users u
-    WHERE (v_me.role = 'Admin' OR u.role <> 'Admin');
+    IF v_me.role = 'Admin' THEN
+      SELECT COALESCE(jsonb_agg(public.ebk_pub_user(u) ORDER BY u.created_at, u.id), '[]'::JSONB)
+      INTO v_users FROM public.ebk_users u;
+    END IF;
 
     SELECT COALESCE(jsonb_agg(public.ebk_pub_user(u) ORDER BY u.created_at, u.id), '[]'::JSONB)
     INTO v_students FROM public.ebk_users u WHERE u.role = 'Murid';
@@ -1043,7 +1044,7 @@ DECLARE
   v_new_id TEXT;
   v_u public.ebk_users;
 BEGIN
-  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
+  v_me := public.ebk_require_session(p_token, ARRAY['Admin']);
 
   IF p_role NOT IN ('Murid', 'Guru', 'Ortu', 'Guru_BK', 'Admin') THEN
     RETURN jsonb_build_object('success', false, 'message', 'Peran tidak valid.');
@@ -1134,7 +1135,7 @@ DECLARE
   v_u public.ebk_users;
   v_bk_count INTEGER;
 BEGIN
-  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
+  v_me := public.ebk_require_session(p_token, ARRAY['Admin']);
 
   SELECT * INTO v_u FROM public.ebk_users WHERE id = COALESCE(p_user_id, '') FOR UPDATE;
   IF NOT FOUND THEN
