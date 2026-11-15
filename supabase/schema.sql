@@ -485,8 +485,8 @@ DECLARE
   v_catatan JSONB := '[]'::JSONB;
   v_konseling JSONB := '[]'::JSONB;
   v_laporan JSONB := '[]'::JSONB;
+  v_school JSONB := '{}'::JSONB;
   v_sid TEXT;
-BEGIN
   v_me := public.ebk_require_session(p_token);
 
   IF v_me.role IN ('Guru_BK', 'Admin') THEN
@@ -558,6 +558,14 @@ BEGIN
     INTO v_konseling FROM public.ebk_konseling k WHERE k.id_siswa = v_sid;
   END IF;
 
+  IF v_me.role = 'Admin' THEN
+    SELECT jsonb_build_object(
+      'namaSekolah', COALESCE((SELECT value FROM public.ebk_pengaturan_sekolah WHERE key = 'Nama_Sekolah'), 'SMKN 1 Kota Binjai'),
+      'alamat', COALESCE((SELECT value FROM public.ebk_pengaturan_sekolah WHERE key = 'Alamat'), ''),
+      'tahunAjaran', COALESCE((SELECT value FROM public.ebk_pengaturan_sekolah WHERE key = 'Tahun_Ajaran'), '')
+    ) INTO v_school;
+  END IF;
+
   RETURN jsonb_build_object(
     'success', true,
     'me', public.ebk_pub_user(v_me),
@@ -565,7 +573,8 @@ BEGIN
     'students', v_students,
     'catatan', v_catatan,
     'konseling', v_konseling,
-    'laporan', v_laporan
+    'laporan', v_laporan,
+    'schoolConfig', v_school
   );
 EXCEPTION WHEN OTHERS THEN
   IF left(SQLERRM, 8) = 'EXPIRED:' THEN
@@ -1131,24 +1140,211 @@ BEGIN
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'message', 'Akun tidak ditemukan.');
   END IF;
-  IF v_u.role = 'Admin' THEN
-    RETURN jsonb_build_object('success', false, 'message', 'Akun Administrator tidak dapat dihapus.');
+  IF v_u.id = 'admin123' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Akun operator utama admin123 tidak dapat dihapus.');
+  END IF;
+  IF v_u.role = 'Admin' AND v_me.role <> 'Admin' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Hanya Administrator yang dapat menghapus akun Admin.');
   END IF;
   IF v_u.id = v_me.id THEN
     RETURN jsonb_build_object('success', false, 'message', 'Anda tidak bisa menghapus akun Anda sendiri.');
   END IF;
-  IF v_u.role = 'Guru_BK' THEN
+  IF v_u.role = 'Guru_BK' AND v_me.role <> 'Admin' THEN
     SELECT COUNT(*) INTO v_bk_count FROM public.ebk_users WHERE role = 'Guru_BK';
     IF v_bk_count <= 1 THEN
       RETURN jsonb_build_object('success', false, 'message', 'Minimal harus ada satu akun Guru BK.');
     END IF;
   END IF;
-  IF v_u.role = 'Murid' AND EXISTS (SELECT 1 FROM public.ebk_users WHERE role = 'Ortu' AND terkait_id_siswa = v_u.id) THEN
-    RETURN jsonb_build_object('success', false, 'message', 'Hapus atau pindahkan akun orang tua yang terhubung ke siswa ini lebih dulu.');
+  IF v_u.role = 'Murid' THEN
+    IF v_me.role = 'Admin' THEN
+      UPDATE public.ebk_users SET terkait_id_siswa = '' WHERE role = 'Ortu' AND terkait_id_siswa = v_u.id;
+    ELSIF EXISTS (SELECT 1 FROM public.ebk_users WHERE role = 'Ortu' AND terkait_id_siswa = v_u.id) THEN
+      RETURN jsonb_build_object('success', false, 'message', 'Hapus atau pindahkan akun orang tua yang terhubung ke siswa ini lebih dulu.');
+    END IF;
   END IF;
 
   DELETE FROM public.ebk_users WHERE id = v_u.id;
   RETURN jsonb_build_object('success', true, 'message', 'Akun ' || v_u.nama || ' dihapus. Riwayat catatan tetap tersimpan.');
+EXCEPTION WHEN OTHERS THEN
+  IF left(SQLERRM, 8) = 'EXPIRED:' THEN
+    RETURN jsonb_build_object('success', false, 'expired', true, 'message', substr(SQLERRM, 9));
+  END IF;
+  RETURN jsonb_build_object('success', false, 'message', regexp_replace(SQLERRM, '^ERR:', ''));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ebk_delete_catatan_poin(p_token TEXT, p_id_catatan TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_c public.ebk_catatan_poin;
+  v_s public.ebk_users;
+  v_baru INTEGER;
+BEGIN
+  PERFORM public.ebk_require_session(p_token, ARRAY['Admin']);
+
+  SELECT * INTO v_c FROM public.ebk_catatan_poin WHERE id = COALESCE(p_id_catatan, '') FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Catatan poin tidak ditemukan.');
+  END IF;
+
+  SELECT * INTO v_s FROM public.ebk_users WHERE id = v_c.id_siswa AND role = 'Murid' FOR UPDATE;
+  IF FOUND THEN
+    v_baru := GREATEST(0, LEAST(100, v_s.poin - v_c.perubahan_poin));
+    UPDATE public.ebk_users
+    SET poin = v_baru,
+        status_sp = public.ebk_hitung_status_sp(v_baru)
+    WHERE id = v_s.id;
+  END IF;
+
+  DELETE FROM public.ebk_catatan_poin WHERE id = v_c.id;
+  RETURN jsonb_build_object('success', true, 'message', 'Catatan ' || v_c.id || ' dihapus dan poin siswa disesuaikan.');
+EXCEPTION WHEN OTHERS THEN
+  IF left(SQLERRM, 8) = 'EXPIRED:' THEN
+    RETURN jsonb_build_object('success', false, 'expired', true, 'message', substr(SQLERRM, 9));
+  END IF;
+  RETURN jsonb_build_object('success', false, 'message', regexp_replace(SQLERRM, '^ERR:', ''));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ebk_delete_konseling(p_token TEXT, p_id_konseling TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_k public.ebk_konseling;
+BEGIN
+  PERFORM public.ebk_require_session(p_token, ARRAY['Admin']);
+
+  SELECT * INTO v_k FROM public.ebk_konseling WHERE id = COALESCE(p_id_konseling, '') FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Data konseling tidak ditemukan.');
+  END IF;
+
+  DELETE FROM public.ebk_konseling WHERE id = v_k.id;
+  RETURN jsonb_build_object('success', true, 'message', 'Data konseling ' || v_k.id || ' dihapus.');
+EXCEPTION WHEN OTHERS THEN
+  IF left(SQLERRM, 8) = 'EXPIRED:' THEN
+    RETURN jsonb_build_object('success', false, 'expired', true, 'message', substr(SQLERRM, 9));
+  END IF;
+  RETURN jsonb_build_object('success', false, 'message', regexp_replace(SQLERRM, '^ERR:', ''));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ebk_delete_laporan_guru(p_token TEXT, p_id_laporan TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_l public.ebk_laporan_guru;
+BEGIN
+  PERFORM public.ebk_require_session(p_token, ARRAY['Admin']);
+
+  SELECT * INTO v_l FROM public.ebk_laporan_guru WHERE id = COALESCE(p_id_laporan, '') FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Laporan guru tidak ditemukan.');
+  END IF;
+
+  DELETE FROM public.ebk_laporan_guru WHERE id = v_l.id;
+  RETURN jsonb_build_object('success', true, 'message', 'Laporan ' || v_l.id || ' dihapus.');
+EXCEPTION WHEN OTHERS THEN
+  IF left(SQLERRM, 8) = 'EXPIRED:' THEN
+    RETURN jsonb_build_object('success', false, 'expired', true, 'message', substr(SQLERRM, 9));
+  END IF;
+  RETURN jsonb_build_object('success', false, 'message', regexp_replace(SQLERRM, '^ERR:', ''));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ebk_admin_tambah_konseling(
+  p_token TEXT,
+  p_id_siswa TEXT,
+  p_topik TEXT,
+  p_cerita TEXT,
+  p_jadwal TEXT,
+  p_catatan_bk TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_s public.ebk_users;
+  v_cerita TEXT := left(btrim(COALESCE(p_cerita, '')), 500);
+  v_jadwal TEXT := left(btrim(COALESCE(p_jadwal, '')), 100);
+  v_catatan TEXT := left(btrim(COALESCE(p_catatan_bk, '')), 200);
+  v_id TEXT;
+  v_status TEXT;
+BEGIN
+  PERFORM public.ebk_require_session(p_token, ARRAY['Admin']);
+
+  SELECT * INTO v_s FROM public.ebk_users WHERE id = COALESCE(p_id_siswa, '') AND role = 'Murid';
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Siswa tidak ditemukan.');
+  END IF;
+  IF p_topik NOT IN ('Pribadi & Sosial', 'Akademik & Belajar', 'Karir, PKL & Kuliah', 'Masalah Kedisiplinan') THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Topik tidak valid.');
+  END IF;
+  IF v_cerita = '' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Keterangan / topik ringkas wajib diisi.');
+  END IF;
+
+  v_status := CASE WHEN v_jadwal <> '' THEN 'Disetujui & Terjadwal' ELSE 'Menunggu' END;
+  v_id := public.ebk_next_id('konseling', 'KS-', 2001, 0);
+
+  INSERT INTO public.ebk_konseling (id, tanggal, id_siswa, nama_siswa, kelas, topik, cerita, status, jadwal, catatan_bk)
+  VALUES (
+    v_id,
+    to_char(now() AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI'),
+    v_s.id, v_s.nama, v_s.kelas_info, p_topik, v_cerita, v_status,
+    CASE WHEN v_jadwal <> '' THEN v_jadwal ELSE '-' END,
+    CASE WHEN v_catatan <> '' THEN v_catatan ELSE '-' END
+  );
+
+  RETURN jsonb_build_object('success', true, 'message', 'Data konseling untuk ' || v_s.nama || ' ditambahkan.');
+EXCEPTION WHEN OTHERS THEN
+  IF left(SQLERRM, 8) = 'EXPIRED:' THEN
+    RETURN jsonb_build_object('success', false, 'expired', true, 'message', substr(SQLERRM, 9));
+  END IF;
+  RETURN jsonb_build_object('success', false, 'message', regexp_replace(SQLERRM, '^ERR:', ''));
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.ebk_save_school_config(
+  p_token TEXT,
+  p_nama_sekolah TEXT,
+  p_alamat TEXT,
+  p_tahun_ajaran TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+  v_nama TEXT := left(btrim(COALESCE(p_nama_sekolah, '')), 150);
+  v_alamat TEXT := left(btrim(COALESCE(p_alamat, '')), 250);
+  v_tahun TEXT := left(btrim(COALESCE(p_tahun_ajaran, '')), 30);
+BEGIN
+  PERFORM public.ebk_require_session(p_token, ARRAY['Admin']);
+  IF v_nama = '' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Nama sekolah wajib diisi.');
+  END IF;
+
+  INSERT INTO public.ebk_pengaturan_sekolah (key, value) VALUES
+    ('Nama_Sekolah', v_nama),
+    ('Alamat', v_alamat),
+    ('Tahun_Ajaran', v_tahun)
+  ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+  RETURN jsonb_build_object('success', true, 'message', 'Pengaturan sekolah berhasil disimpan.');
 EXCEPTION WHEN OTHERS THEN
   IF left(SQLERRM, 8) = 'EXPIRED:' THEN
     RETURN jsonb_build_object('success', false, 'expired', true, 'message', substr(SQLERRM, 9));
@@ -1182,3 +1378,8 @@ GRANT EXECUTE ON FUNCTION public.ebk_delete_user_account(TEXT, TEXT) TO anon, au
 GRANT EXECUTE ON FUNCTION public.ebk_ajukan_laporan_guru(TEXT, TEXT, TEXT, NUMERIC, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.ebk_verifikasi_laporan_guru(TEXT, TEXT, TEXT, NUMERIC, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.ebk_selesaikan_konseling(TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ebk_delete_catatan_poin(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ebk_delete_konseling(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ebk_delete_laporan_guru(TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ebk_admin_tambah_konseling(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.ebk_save_school_config(TEXT, TEXT, TEXT, TEXT) TO anon, authenticated;

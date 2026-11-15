@@ -189,6 +189,7 @@
               <button type="button" class="filter-pill active" onclick="setAdminView('bk', this)">Kontrol BK</button>
               <button type="button" class="filter-pill" onclick="setAdminView('guru', this)">Mode Guru</button>
               <button type="button" class="filter-pill" onclick="setAdminView('murid', this)">Pratinjau Siswa</button>
+              <button type="button" class="filter-pill" onclick="setAdminView('data', this)">Kelola Semua Data</button>
             </div>
             <select id="adminPreviewStudentSelect" class="form-select form-select-sm" style="display: none; min-width: 200px;"
                     aria-label="Pilih siswa untuk pratinjau" onchange="renderAdminPreviewStudent()"></select>
@@ -704,6 +705,163 @@
                     </tr>
                   </thead>
                   <tbody id="crudTabelUsersBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW F: KELOLA SEMUA DATA (KHUSUS ADMIN) -->
+      <section id="viewAdminData" style="display: none;" aria-label="Kelola Semua Data Operator">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+          <div>
+            <h1 class="h4 fw-bold text-dark mb-1">
+              <i class="bi bi-database-fill-gear text-primary me-2" aria-hidden="true"></i>Kelola Semua Data Sistem
+            </h1>
+            <p class="text-muted small mb-0">Tambah dan hapus catatan poin, konseling, laporan guru, dan pengaturan sekolah</p>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold" onclick="toggleSettingsView()">
+              <i class="bi bi-people-fill me-1" aria-hidden="true"></i> Kelola Akun (Siswa/Guru/Ortu/BK)
+            </button>
+            <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold" onclick="openCatatPoinModal()">
+              <i class="bi bi-plus-circle me-1" aria-hidden="true"></i> Tambah Catatan Poin
+            </button>
+          </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+          <div class="col-12 col-lg-5">
+            <div class="content-card p-3 p-md-4 h-100">
+              <h2 class="h5 fw-bold mb-3"><i class="bi bi-building-gear text-primary me-2" aria-hidden="true"></i>Pengaturan Sekolah</h2>
+              <form id="formSchoolConfig" onsubmit="handleSaveSchoolConfig(event)">
+                <div class="mb-3">
+                  <label for="cfgNamaSekolah" class="form-label small fw-semibold">Nama Sekolah</label>
+                  <input type="text" class="form-control" id="cfgNamaSekolah" required>
+                </div>
+                <div class="mb-3">
+                  <label for="cfgAlamat" class="form-label small fw-semibold">Alamat Sekolah</label>
+                  <input type="text" class="form-control" id="cfgAlamat">
+                </div>
+                <div class="mb-3">
+                  <label for="cfgTahunAjaran" class="form-label small fw-semibold">Tahun Ajaran</label>
+                  <input type="text" class="form-control" id="cfgTahunAjaran" placeholder="2026/2027">
+                </div>
+                <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                  <i class="bi bi-save me-1" aria-hidden="true"></i> Simpan Pengaturan Sekolah
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-7">
+            <div class="content-card p-3 p-md-4 h-100">
+              <h2 class="h5 fw-bold mb-3"><i class="bi bi-chat-plus-fill text-primary me-2" aria-hidden="true"></i>Tambah Data Konseling</h2>
+              <form id="formAdminTambahKonseling" onsubmit="handleAdminTambahKonseling(event)">
+                <div class="row g-2 mb-2">
+                  <div class="col-12 col-md-6">
+                    <label for="admKsSiswa" class="form-label small fw-semibold">Siswa</label>
+                    <select class="form-select" id="admKsSiswa" required></select>
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label for="admKsTopik" class="form-label small fw-semibold">Topik</label>
+                    <select class="form-select" id="admKsTopik" required>
+                      <option value="Pribadi & Sosial">Pribadi &amp; Sosial</option>
+                      <option value="Akademik & Belajar">Akademik &amp; Belajar</option>
+                      <option value="Karir, PKL & Kuliah">Karir, PKL &amp; Kuliah</option>
+                      <option value="Masalah Kedisiplinan">Masalah Kedisiplinan</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="mb-2">
+                  <label for="admKsCerita" class="form-label small fw-semibold">Keterangan / Keluhan Singkat</label>
+                  <input type="text" class="form-control" id="admKsCerita" placeholder="Isi keterangan konseling..." required>
+                </div>
+                <div class="row g-2 mb-3">
+                  <div class="col-12 col-md-6">
+                    <label for="admKsJadwal" class="form-label small fw-semibold">Jadwal (opsional)</label>
+                    <input type="text" class="form-control" id="admKsJadwal" placeholder="Kosongkan bila status Menunggu">
+                  </div>
+                  <div class="col-12 col-md-6">
+                    <label for="admKsCatatan" class="form-label small fw-semibold">Catatan BK (opsional)</label>
+                    <input type="text" class="form-control" id="admKsCatatan" placeholder="Pesan atau catatan BK">
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                  <i class="bi bi-plus-circle me-1" aria-hidden="true"></i> Tambah Data Konseling
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="content-card mb-4">
+          <div class="p-3 p-md-4 border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <h2 class="h5 fw-bold mb-0">Semua Catatan Poin</h2>
+              <small class="text-muted">Menghapus catatan poin akan otomatis menyesuaikan poin siswa kembali.</small>
+            </div>
+            <span class="badge bg-primary rounded-pill" id="adminTotalCatatanBadge">0 Catatan</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover table-stack mb-0">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Tanggal</th>
+                  <th>Siswa</th>
+                  <th>Jenis &amp; Poin</th>
+                  <th>Keterangan</th>
+                  <th>Pelapor</th>
+                  <th class="text-end">Hapus</th>
+                </tr>
+              </thead>
+              <tbody id="adminTabelCatatanBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-12 col-lg-6">
+            <div class="content-card h-100">
+              <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h2 class="h6 fw-bold mb-0">Semua Data Konseling</h2>
+                <span class="badge bg-info text-dark rounded-pill" id="adminTotalKonselingBadge">0</span>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-hover table-stack mb-0">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Siswa</th>
+                      <th>Topik &amp; Status</th>
+                      <th class="text-end">Hapus</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminTabelKonselingBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <div class="content-card h-100">
+              <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                <h2 class="h6 fw-bold mb-0">Semua Laporan Guru</h2>
+                <span class="badge bg-warning text-dark rounded-pill" id="adminTotalLaporanBadge">0</span>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-sm table-hover table-stack mb-0">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Siswa &amp; Pelapor</th>
+                      <th>Status</th>
+                      <th class="text-end">Hapus</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminTabelLaporanBody"></tbody>
                 </table>
               </div>
             </div>

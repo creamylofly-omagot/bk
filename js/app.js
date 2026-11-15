@@ -451,7 +451,7 @@
       const res = await BackendAPI.call('getAllAppData', sessionToken);
       hideLoading();
       if (res.success) {
-        appData = Object.assign({ users: [], students: [], catatan: [], konseling: [], laporan: [] }, res);
+        appData = Object.assign({ users: [], students: [], catatan: [], konseling: [], laporan: [], schoolConfig: {} }, res);
         currentUser = res.me;
         populateStudentSelectOptions();
         renderActiveRoleView();
@@ -490,7 +490,7 @@
   }
 
   function renderActiveRoleView() {
-    ['viewGuruBK', 'viewMurid', 'viewGuru', 'viewOrtu', 'viewPengaturan'].forEach(id => {
+    ['viewGuruBK', 'viewMurid', 'viewGuru', 'viewOrtu', 'viewPengaturan', 'viewAdminData'].forEach(id => {
       $(id).style.display = 'none';
     });
 
@@ -514,6 +514,9 @@
         $('viewMurid').style.display = 'block';
         $('counselingRequestCard').style.display = 'none';
         renderAdminPreviewStudent();
+      } else if (adminActiveView === 'data') {
+        $('viewAdminData').style.display = 'block';
+        renderAdminDataView();
       } else {
         $('viewGuruBK').style.display = 'block';
         renderDashboardGuruBK();
@@ -1315,8 +1318,24 @@
     renderActiveRoleView();
   }
 
+
+  function ensureAdminRoleOption(showAdminOption) {
+    const roleSel = $('crudUserRole');
+    let adminOpt = roleSel.querySelector('option[value="Admin"]');
+    if (showAdminOption) {
+      if (!adminOpt) {
+        adminOpt = document.createElement('option');
+        adminOpt.value = 'Admin';
+        adminOpt.textContent = 'Administrator (Operator)';
+        roleSel.appendChild(adminOpt);
+      }
+    } else if (adminOpt) {
+      adminOpt.remove();
+    }
+  }
   function renderSettingsView() {
     $('totalUsersBadge').innerText = `${appData.users.length} Akun`;
+    ensureAdminRoleOption(currentUser && currentUser.role === 'Admin');
 
     const ortuSelect = $('crudUserTerkaitSiswa');
     ortuSelect.innerHTML = '<option value="">-- Pilih Putra/Putri --</option>';
@@ -1347,7 +1366,7 @@
             <button type="button" class="btn btn-sm btn-outline-primary me-1" data-edit-user="${esc(u.id)}" aria-label="Edit ${esc(u.nama)}">
               <i class="bi bi-pencil-square" aria-hidden="true"></i>
             </button>
-            ${u.role === 'Admin' ? '' : `<button type="button" class="btn btn-sm btn-outline-danger" data-delete-user="${esc(u.id)}" aria-label="Hapus ${esc(u.nama)}"><i class="bi bi-trash" aria-hidden="true"></i></button>`}
+            ${(u.id === 'admin123' || u.id === currentUser.id) ? '' : `<button type="button" class="btn btn-sm btn-outline-danger" data-delete-user="${esc(u.id)}" aria-label="Hapus ${esc(u.nama)}"><i class="bi bi-trash" aria-hidden="true"></i></button>`}
           </td>
         </tr>
       `;
@@ -1365,17 +1384,7 @@
     $('crudUserMode').value = 'edit';
     $('crudUserId').value = u.id;
     const roleSel = $('crudUserRole');
-    let adminOpt = roleSel.querySelector('option[value="Admin"]');
-    if (u.role === 'Admin') {
-      if (!adminOpt) {
-        adminOpt = document.createElement('option');
-        adminOpt.value = 'Admin';
-        adminOpt.textContent = 'Admin (Operator)';
-        roleSel.appendChild(adminOpt);
-      }
-    } else if (adminOpt) {
-      adminOpt.remove();
-    }
+    ensureAdminRoleOption(u.role === 'Admin' || (currentUser && currentUser.role === 'Admin'));
     roleSel.value = u.role;
     roleSel.disabled = true;
     $('crudUserNama').value = u.nama;
@@ -1391,8 +1400,7 @@
     $('crudUserMode').value = 'add';
     $('crudUserId').value = '';
     const roleSel = $('crudUserRole');
-    const adminOpt = roleSel.querySelector('option[value="Admin"]');
-    if (adminOpt) adminOpt.remove();
+    ensureAdminRoleOption(currentUser && currentUser.role === 'Admin');
     roleSel.disabled = false;
     roleSel.value = 'Murid';
     $('crudUserNama').value = '';
@@ -1465,11 +1473,155 @@
     }
   }
 
+
+  function renderAdminDataView() {
+    const cfg = appData.schoolConfig || {};
+    $('cfgNamaSekolah').value = cfg.namaSekolah || 'SMKN 1 Kota Binjai';
+    $('cfgAlamat').value = cfg.alamat || '';
+    $('cfgTahunAjaran').value = cfg.tahunAjaran || '';
+
+    const ksSiswaSel = $('admKsSiswa');
+    ksSiswaSel.innerHTML = '';
+    if (appData.students.length === 0) {
+      ksSiswaSel.innerHTML = '<option value="">-- Belum ada siswa --</option>';
+    } else {
+      appData.students.forEach(s => {
+        ksSiswaSel.innerHTML += `<option value="${esc(s.id)}">${esc(s.nama)} (${esc(s.kelasInfo)})</option>`;
+      });
+    }
+
+    $('adminTotalCatatanBadge').innerText = `${appData.catatan.length} Catatan`;
+    const ctBody = $('adminTabelCatatanBody');
+    ctBody.innerHTML = '';
+    if (appData.catatan.length === 0) {
+      ctBody.innerHTML = '<tr><td colspan="7" class="text-center py-3 text-muted">Belum ada catatan poin.</td></tr>';
+    } else {
+      appData.catatan.forEach(c => {
+        const isPositive = c.jenis !== 'Pelanggaran';
+        const deltaStr = c.perubahanPoin > 0 ? '+' + c.perubahanPoin : String(c.perubahanPoin);
+        ctBody.innerHTML += `
+          <tr>
+            <td class="small fw-bold text-muted">${esc(c.id)}</td>
+            <td class="small text-nowrap">${esc(c.tanggal)}</td>
+            <td><span class="fw-semibold">${esc(c.namaSiswa)}</span> <span class="badge bg-light text-dark border">${esc(c.kelas)}</span></td>
+            <td><span class="badge ${isPositive ? 'bg-success-subtle text-success-emphasis' : 'bg-danger-subtle text-danger'}">${esc(c.jenis)} (${esc(deltaStr)})</span></td>
+            <td class="small">${esc(c.keterangan)}</td>
+            <td class="small text-muted">${esc(c.pelapor)}</td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-danger" data-del-catatan="${esc(c.id)}" aria-label="Hapus catatan ${esc(c.id)}">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    $('adminTotalKonselingBadge').innerText = String(appData.konseling.length);
+    const ksBody = $('adminTabelKonselingBody');
+    ksBody.innerHTML = '';
+    if (appData.konseling.length === 0) {
+      ksBody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Belum ada data konseling.</td></tr>';
+    } else {
+      appData.konseling.forEach(k => {
+        ksBody.innerHTML += `
+          <tr>
+            <td class="small fw-bold text-muted">${esc(k.id)}</td>
+            <td><span class="fw-semibold">${esc(k.namaSiswa)}</span> <small class="text-muted">(${esc(k.kelas)})</small></td>
+            <td class="small">${esc(k.topik)} • <span class="badge bg-secondary">${esc(k.status)}</span></td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-danger" data-del-konseling="${esc(k.id)}" aria-label="Hapus konseling ${esc(k.id)}">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+
+    const lpList = appData.laporan || [];
+    $('adminTotalLaporanBadge').innerText = String(lpList.length);
+    const lpBody = $('adminTabelLaporanBody');
+    lpBody.innerHTML = '';
+    if (lpList.length === 0) {
+      lpBody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">Belum ada laporan guru.</td></tr>';
+    } else {
+      lpList.forEach(l => {
+        lpBody.innerHTML += `
+          <tr>
+            <td class="small fw-bold text-muted">${esc(l.id)}</td>
+            <td class="small"><strong>${esc(l.namaSiswa)}</strong> <span class="text-muted">(${esc(l.pelapor)})</span></td>
+            <td><span class="badge bg-secondary">${esc(l.status)}</span></td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-danger" data-del-laporan="${esc(l.id)}" aria-label="Hapus laporan ${esc(l.id)}">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+    }
+  }
+
+  async function handleSaveSchoolConfig(e) {
+    e.preventDefault();
+    showLoading('Menyimpan pengaturan sekolah...');
+    try {
+      const res = await BackendAPI.call('saveSchoolConfig', sessionToken, {
+        namaSekolah: $('cfgNamaSekolah').value.trim(),
+        alamat: $('cfgAlamat').value.trim(),
+        tahunAjaran: $('cfgTahunAjaran').value.trim()
+      });
+      hideLoading();
+      showToast(res.message, res.success ? 'success' : 'error');
+      if (res.success) refreshAllData();
+    } catch (err) {
+      hideLoading();
+      showToast('Gagal menyimpan pengaturan: ' + err.message, 'error');
+    }
+  }
+
+  async function handleAdminTambahKonseling(e) {
+    e.preventDefault();
+    showLoading('Menambahkan data konseling...');
+    try {
+      const res = await BackendAPI.call('adminTambahKonseling', sessionToken, {
+        idSiswa: $('admKsSiswa').value,
+        topik: $('admKsTopik').value,
+        cerita: $('admKsCerita').value.trim(),
+        jadwal: $('admKsJadwal').value.trim(),
+        catatanBK: $('admKsCatatan').value.trim()
+      });
+      hideLoading();
+      showToast(res.message, res.success ? 'success' : 'error');
+      if (res.success) {
+        e.target.reset();
+        refreshAllData();
+      }
+    } catch (err) {
+      hideLoading();
+      showToast('Gagal menambah konseling: ' + err.message, 'error');
+    }
+  }
+
+  async function confirmDeleteRecord(action, id, label) {
+    if (!confirm(`Hapus ${label} (${id})? Tindakan ini tidak dapat dibatalkan.`)) return;
+    showLoading(`Menghapus ${label}...`);
+    try {
+      const res = await BackendAPI.call(action, sessionToken, id);
+      hideLoading();
+      showToast(res.message, res.success ? 'success' : 'error');
+      if (res.success) refreshAllData();
+    } catch (err) {
+      hideLoading();
+      showToast('Gagal menghapus data: ' + err.message, 'error');
+    }
+  }
   // =========================================================================
   // EVENT BINDINGS & INIT
   // =========================================================================
   document.addEventListener('DOMContentLoaded', async () => {
-    ['bkTabelSiswaBody', 'muridTabelRiwayat', 'guruTabelSiswaBody', 'guruTabelLaporanBody', 'crudTabelUsersBody', 'riwayatSiswaCatatanBody'].forEach(id => {
+    ['bkTabelSiswaBody', 'muridTabelRiwayat', 'guruTabelSiswaBody', 'guruTabelLaporanBody', 'crudTabelUsersBody', 'riwayatSiswaCatatanBody', 'adminTabelCatatanBody', 'adminTabelKonselingBody', 'adminTabelLaporanBody'].forEach(id => {
       const el = $(id);
       if (el) new MutationObserver(() => labelCells(el)).observe(el, { childList: true });
     });
@@ -1523,6 +1675,23 @@
       const delBtn = e.target.closest('[data-delete-user]');
       if (delBtn) {
         confirmDeleteUser(delBtn.getAttribute('data-delete-user'));
+      }
+    });
+
+    $('viewAdminData').addEventListener('click', e => {
+      const delCt = e.target.closest('[data-del-catatan]');
+      if (delCt) {
+        confirmDeleteRecord('deleteCatatanPoin', delCt.getAttribute('data-del-catatan'), 'catatan poin');
+        return;
+      }
+      const delKs = e.target.closest('[data-del-konseling]');
+      if (delKs) {
+        confirmDeleteRecord('deleteKonseling', delKs.getAttribute('data-del-konseling'), 'data konseling');
+        return;
+      }
+      const delLp = e.target.closest('[data-del-laporan]');
+      if (delLp) {
+        confirmDeleteRecord('deleteLaporanGuru', delLp.getAttribute('data-del-laporan'), 'laporan guru');
       }
     });
 
@@ -1606,5 +1775,8 @@
     handleSimpanCatatanPoin,
     handleSimpanTindakan,
     handleUbahSandi
+    ,
+    handleSaveSchoolConfig,
+    handleAdminTambahKonseling
   });
 })(window);

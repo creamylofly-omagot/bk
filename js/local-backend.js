@@ -297,6 +297,14 @@
           }
         }
 
+        const getCfg = k => {
+          const row = (db.config || []).find(x => x.Key === k);
+          return row ? row.Value : '';
+        };
+        const schoolConfig = me.role === 'Admin'
+          ? { namaSekolah: getCfg('Nama_Sekolah') || 'SMKN 1 Kota Binjai', alamat: getCfg('Alamat'), tahunAjaran: getCfg('Tahun_Ajaran') }
+          : {};
+
         return {
           success: true,
           me: pub(me),
@@ -304,7 +312,8 @@
           students: students.map(pub),
           catatan: catatan.reverse(),
           konseling: konseling.reverse(),
-          laporan: laporan.reverse()
+          laporan: laporan.reverse(),
+          schoolConfig
         };
       }
 
@@ -583,17 +592,105 @@
         const idx = db.users.findIndex(x => x.id === userId);
         if (idx < 0) throw new Error('Akun tidak ditemukan.');
         const u = db.users[idx];
-        if (u.role === 'Admin') throw new Error('Akun Administrator tidak dapat dihapus.');
+        if (u.id === 'admin123') throw new Error('Akun operator utama admin123 tidak dapat dihapus.');
+        if (u.role === 'Admin' && me.role !== 'Admin') throw new Error('Hanya Administrator yang dapat menghapus akun Admin.');
         if (u.id === me.id) throw new Error('Anda tidak bisa menghapus akun Anda sendiri.');
-        if (u.role === 'Guru_BK' && db.users.filter(x => x.role === 'Guru_BK').length <= 1) {
+        if (u.role === 'Guru_BK' && me.role !== 'Admin' && db.users.filter(x => x.role === 'Guru_BK').length <= 1) {
           throw new Error('Minimal harus ada satu akun Guru BK.');
         }
-        if (u.role === 'Murid' && db.users.some(x => x.role === 'Ortu' && x.terkaitIdSiswa === u.id)) {
-          throw new Error('Hapus atau pindahkan akun orang tua yang terhubung ke siswa ini lebih dulu.');
+        if (u.role === 'Murid') {
+          if (me.role === 'Admin') {
+            db.users.forEach(x => {
+              if (x.role === 'Ortu' && x.terkaitIdSiswa === u.id) x.terkaitIdSiswa = '';
+            });
+          } else if (db.users.some(x => x.role === 'Ortu' && x.terkaitIdSiswa === u.id)) {
+            throw new Error('Hapus atau pindahkan akun orang tua yang terhubung ke siswa ini lebih dulu.');
+          }
         }
         db.users.splice(idx, 1);
         saveDb(db);
         return { success: true, message: `Akun ${u.nama} dihapus. Riwayat catatan tetap tersimpan.` };
+      }
+
+      if (action === 'deleteCatatanPoin') {
+        requireSession(db, args[0], ['Admin']);
+        const idCatatan = String(args[1] || '');
+        const idx = db.catatan.findIndex(x => x.id === idCatatan);
+        if (idx < 0) throw new Error('Catatan poin tidak ditemukan.');
+        const c = db.catatan[idx];
+        const s = db.users.find(x => x.id === c.idSiswa && x.role === 'Murid');
+        if (s) {
+          const baru = Math.max(0, Math.min(100, Number(s.poin) - Number(c.perubahanPoin)));
+          s.poin = baru;
+          s.statusSP = hitungStatusSP(baru);
+        }
+        db.catatan.splice(idx, 1);
+        saveDb(db);
+        return { success: true, message: `Catatan ${c.id} dihapus dan poin siswa disesuaikan.` };
+      }
+
+      if (action === 'deleteKonseling') {
+        requireSession(db, args[0], ['Admin']);
+        const idKs = String(args[1] || '');
+        const idx = db.konseling.findIndex(x => x.id === idKs);
+        if (idx < 0) throw new Error('Data konseling tidak ditemukan.');
+        const k = db.konseling[idx];
+        db.konseling.splice(idx, 1);
+        saveDb(db);
+        return { success: true, message: `Data konseling ${k.id} dihapus.` };
+      }
+
+      if (action === 'deleteLaporanGuru') {
+        requireSession(db, args[0], ['Admin']);
+        const idLp = String(args[1] || '');
+        const idx = db.laporan.findIndex(x => x.id === idLp);
+        if (idx < 0) throw new Error('Laporan guru tidak ditemukan.');
+        const l = db.laporan[idx];
+        db.laporan.splice(idx, 1);
+        saveDb(db);
+        return { success: true, message: `Laporan ${l.id} dihapus.` };
+      }
+
+      if (action === 'adminTambahKonseling') {
+        requireSession(db, args[0], ['Admin']);
+        const p = args[1] || {};
+        const s = db.users.find(x => x.id === String(p.idSiswa || '') && x.role === 'Murid');
+        if (!s) throw new Error('Siswa tidak ditemukan.');
+        if (TOPIK.indexOf(p.topik) < 0) throw new Error('Topik tidak valid.');
+        const cerita = String(p.cerita || '').trim().slice(0, 500);
+        if (!cerita) throw new Error('Keterangan / topik ringkas wajib diisi.');
+        const jadwal = String(p.jadwal || '').trim().slice(0, 100);
+        const catatan = String(p.catatanBK || '').trim().slice(0, 200);
+        db.konseling.push({
+          id: nextId(db.konseling, 'KS-', 2001),
+          tanggal: formatJakarta(new Date(), true),
+          idSiswa: s.id,
+          namaSiswa: s.nama,
+          kelas: s.kelasInfo,
+          topik: p.topik,
+          cerita,
+          status: jadwal ? 'Disetujui & Terjadwal' : 'Menunggu',
+          jadwal: jadwal || '-',
+          catatanBK: catatan || '-'
+        });
+        saveDb(db);
+        return { success: true, message: `Data konseling untuk ${s.nama} ditambahkan.` };
+      }
+
+      if (action === 'saveSchoolConfig') {
+        requireSession(db, args[0], ['Admin']);
+        const p = args[1] || {};
+        const nama = String(p.namaSekolah || '').trim().slice(0, 150);
+        const alamat = String(p.alamat || '').trim().slice(0, 250);
+        const tahun = String(p.tahunAjaran || '').trim().slice(0, 30);
+        if (!nama) throw new Error('Nama sekolah wajib diisi.');
+        db.config = [
+          { Key: 'Nama_Sekolah', Value: nama },
+          { Key: 'Alamat', Value: alamat },
+          { Key: 'Tahun_Ajaran', Value: tahun }
+        ];
+        saveDb(db);
+        return { success: true, message: 'Pengaturan sekolah berhasil disimpan.' };
       }
 
       throw new Error('Aksi tidak dikenal.');

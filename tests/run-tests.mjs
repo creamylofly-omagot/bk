@@ -68,6 +68,12 @@ function runStaticHtmlAndContractChecks() {
     ['selesaikanKonseling', ['tok', 'KS-2001', 'Selesai']],
     ['saveUserAccount', ['tok', { mode: 'add', id: '', role: 'Murid', nama: 'A', kelasInfo: 'B', password: '123456', terkaitIdSiswa: '' }]],
     ['deleteUserAccount', ['tok', 'SW07']]
+    ,
+    ['deleteCatatanPoin', ['tok', 'CT-1001']],
+    ['deleteKonseling', ['tok', 'KS-2001']],
+    ['deleteLaporanGuru', ['tok', 'LP-3001']],
+    ['adminTambahKonseling', ['tok', { idSiswa: 'SW01', topik: 'Pribadi & Sosial', cerita: 'c', jadwal: 'j', catatanBK: 'k' }]],
+    ['saveSchoolConfig', ['tok', { namaSekolah: 'SMK', alamat: 'Jl', tahunAjaran: '2026/2027' }]]
   ];
 
   for (const [action, args] of actions) {
@@ -267,12 +273,53 @@ async function runBackendBehaviorTests() {
     (await LocalBackend.dispatch('ajukanLaporanGuru', [adm.token, { idSiswa: 'SW04', jenis: 'Prestasi', poin: 5, keterangan: 'Tes Mode Guru Admin' }])).success,
     true
   );
-  // 8. Password change & logout invalidates token
-  const chPw = await LocalBackend.dispatch('ubahSandi', [sw01.token, '123456', 'sandibaru99']);
+
+  // 7d. Admin full add/delete over Catatan_Poin, Konseling, Laporan_Guru, School Config, and any User (except admin123)
+  assert.equal((await LocalBackend.dispatch('deleteCatatanPoin', [bk.token, 'CT-1001'])).success, false);
+  assert.equal((await LocalBackend.dispatch('saveSchoolConfig', [bk.token, { namaSekolah: 'Hack' }])).success, false);
+
+  const beforeDelCt = await LocalBackend.dispatch('getAllAppData', [adm.token]);
+  const sw04Before = beforeDelCt.students.find(s => s.id === 'SW04').poin; // 70 (60 + 10)
+  assert.equal(sw04Before, 70);
+  const latestCtId = beforeDelCt.catatan[0].id;
+  assert.equal((await LocalBackend.dispatch('deleteCatatanPoin', [adm.token, latestCtId])).success, true);
+  const afterDelCt = await LocalBackend.dispatch('getAllAppData', [adm.token]);
+  assert.equal(afterDelCt.students.find(s => s.id === 'SW04').poin, 60);
+
+  assert.equal(
+    (await LocalBackend.dispatch('adminTambahKonseling', [adm.token, { idSiswa: 'SW04', topik: 'Akademik & Belajar', cerita: 'Dibuat admin', jadwal: 'Jumat 10:00', catatanBK: 'OK' }])).success,
+    true
+  );
+  assert.equal((await LocalBackend.dispatch('deleteKonseling', [adm.token, 'KS-2001'])).success, true);
+  assert.equal((await LocalBackend.dispatch('deleteLaporanGuru', [adm.token, 'LP-3001'])).success, true);
+  assert.equal(
+    (await LocalBackend.dispatch('saveSchoolConfig', [adm.token, { namaSekolah: 'SMKN 1 Binjai', alamat: 'Jl. Samanhudi', tahunAjaran: '2027/2028' }])).success,
+    true
+  );
+
+  // Admin can add & delete Guru, Ortu, Murid (auto-unlinking Ortu), and even last Guru_BK
+  assert.equal((await LocalBackend.dispatch('saveUserAccount', [adm.token, { mode: 'add', role: 'Admin', nama: 'Admin 2', kelasInfo: 'Cabang', password: 'password123' }])).success, true);
+  assert.equal((await LocalBackend.dispatch('deleteUserAccount', [adm.token, 'AD01'])).success, true);
+  assert.equal((await LocalBackend.dispatch('deleteUserAccount', [adm.token, 'GR02'])).success, true);
+  assert.equal((await LocalBackend.dispatch('deleteUserAccount', [adm.token, 'OT02'])).success, true);
+  assert.equal((await LocalBackend.dispatch('deleteUserAccount', [adm.token, 'SW01'])).success, true);
+  assert.equal((await LocalBackend.dispatch('deleteUserAccount', [adm.token, 'BK01'])).success, true);
+  const afterBulkDel = await LocalBackend.dispatch('getAllAppData', [adm.token]);
+  assert.equal(afterBulkDel.users.find(u => u.id === 'OT01').terkaitIdSiswa, '');
+  assert.equal(afterBulkDel.schoolConfig.tahunAjaran, '2027/2028');
+  // Verify deleted SW01 session is immediately invalidated
+  const deletedSwSess = await LocalBackend.dispatch('getAllAppData', [sw01.token]);
+  assert.equal(deletedSwSess.success, false);
+  assert.equal(deletedSwSess.expired, true);
+
+  // 8. Password change & logout invalidates token (using active user SW03)
+  const sw03Login = await LocalBackend.dispatch('loginUser', ['SW03', '123456']);
+  assert.equal(sw03Login.success, true);
+  const chPw = await LocalBackend.dispatch('ubahSandi', [sw03Login.token, '123456', 'sandibaru99']);
   assert.equal(chPw.success, true);
-  assert.equal((await LocalBackend.dispatch('loginUser', ['SW01', 'sandibaru99'])).success, true);
-  await LocalBackend.dispatch('akhiriSesi', [sw01.token]);
-  const expiredData = await LocalBackend.dispatch('getAllAppData', [sw01.token]);
+  assert.equal((await LocalBackend.dispatch('loginUser', ['SW03', 'sandibaru99'])).success, true);
+  await LocalBackend.dispatch('akhiriSesi', [sw03Login.token]);
+  const expiredData = await LocalBackend.dispatch('getAllAppData', [sw03Login.token]);
   assert.equal(expiredData.success, false);
   assert.equal(expiredData.expired, true);
 }

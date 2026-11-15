@@ -152,6 +152,38 @@
       }
       case 'deleteUserAccount':
         return ['ebk_delete_user_account', { p_token: args[0], p_user_id: args[1] }];
+      case 'deleteCatatanPoin':
+        return ['ebk_delete_catatan_poin', { p_token: args[0], p_id_catatan: args[1] }];
+      case 'deleteKonseling':
+        return ['ebk_delete_konseling', { p_token: args[0], p_id_konseling: args[1] }];
+      case 'deleteLaporanGuru':
+        return ['ebk_delete_laporan_guru', { p_token: args[0], p_id_laporan: args[1] }];
+      case 'adminTambahKonseling': {
+        const p = args[1] || {};
+        return [
+          'ebk_admin_tambah_konseling',
+          {
+            p_token: args[0],
+            p_id_siswa: p.idSiswa,
+            p_topik: p.topik,
+            p_cerita: p.cerita,
+            p_jadwal: p.jadwal || '',
+            p_catatan_bk: p.catatanBK || ''
+          }
+        ];
+      }
+      case 'saveSchoolConfig': {
+        const p = args[1] || {};
+        return [
+          'ebk_save_school_config',
+          {
+            p_token: args[0],
+            p_nama_sekolah: p.namaSekolah,
+            p_alamat: p.alamat || '',
+            p_tahun_ajaran: p.tahunAjaran || ''
+          }
+        ];
+      }
       default:
         throw new Error('Aksi tidak dikenal: ' + action);
     }

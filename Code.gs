@@ -48,6 +48,12 @@ function doPost(e) {
       selesaikanKonseling: () => selesaikanKonseling(args[0], args[1], args[2]),
       saveUserAccount: () => saveUserAccount(args[0], args[1]),
       deleteUserAccount: () => deleteUserAccount(args[0], args[1])
+      ,
+      deleteCatatanPoin: () => deleteCatatanPoin(args[0], args[1]),
+      deleteKonseling: () => deleteKonseling(args[0], args[1]),
+      deleteLaporanGuru: () => deleteLaporanGuru(args[0], args[1]),
+      adminTambahKonseling: () => adminTambahKonseling(args[0], args[1]),
+      saveSchoolConfig: () => saveSchoolConfig(args[0], args[1])
     };
 
     if (!Object.prototype.hasOwnProperty.call(handlers, action)) {
@@ -309,7 +315,14 @@ function getAllAppData(token) {
       konseling = konseling.filter(k => k.idSiswa === sid);
       if (me.role === 'Ortu') konseling = konseling.map(k => Object.assign({}, k, { cerita: '(Isi cerita bersifat rahasia)' }));
     }
-    return { success: true, me: pub_(me), users: users, students: students.map(pub_), catatan: catatan.reverse(), konseling: konseling.reverse(), laporan: laporan.reverse() };
+    let schoolConfig = {};
+    if (me.role === 'Admin') {
+      const cfgVals = ss_().getSheetByName(SHEET.CONFIG).getDataRange().getValues().slice(1);
+      const map = {};
+      cfgVals.forEach(r => { map[String(r[0])] = String(r[1] || ''); });
+      schoolConfig = { namaSekolah: map.Nama_Sekolah || 'SMKN 1 Kota Binjai', alamat: map.Alamat || '', tahunAjaran: map.Tahun_Ajaran || '' };
+    }
+    return { success: true, me: pub_(me), users: users, students: students.map(pub_), catatan: catatan.reverse(), konseling: konseling.reverse(), laporan: laporan.reverse(), schoolConfig: schoolConfig };
   });
 }
 
@@ -536,13 +549,100 @@ function deleteUserAccount(token, userId) {
       const all = users_();
       const u = all.filter(x => x.id === String(userId))[0];
       if (!u) throw new Error('Akun tidak ditemukan.');
-      if (u.role === 'Admin') throw new Error('Akun Administrator tidak dapat dihapus.');
+      if (u.id === 'admin123') throw new Error('Akun operator utama admin123 tidak dapat dihapus.');
+      if (u.role === 'Admin' && me.role !== 'Admin') throw new Error('Hanya Administrator yang dapat menghapus akun Admin.');
       if (u.id === me.id) throw new Error('Anda tidak bisa menghapus akun Anda sendiri.');
-      if (u.role === 'Guru_BK' && all.filter(x => x.role === 'Guru_BK').length <= 1) throw new Error('Minimal harus ada satu akun Guru BK.');
-      if (u.role === 'Murid' && all.some(x => x.role === 'Ortu' && x.terkaitIdSiswa === u.id))
-        throw new Error('Hapus atau pindahkan akun orang tua yang terhubung ke siswa ini lebih dulu.');
+      if (u.role === 'Guru_BK' && me.role !== 'Admin' && all.filter(x => x.role === 'Guru_BK').length <= 1) throw new Error('Minimal harus ada satu akun Guru BK.');
+      if (u.role === 'Murid') {
+        if (me.role === 'Admin') {
+          const su = ss_().getSheetByName(SHEET.USERS);
+          all.forEach(x => { if (x.role === 'Ortu' && x.terkaitIdSiswa === u.id) su.getRange(x._row, 9).setValue(''); });
+        } else if (all.some(x => x.role === 'Ortu' && x.terkaitIdSiswa === u.id)) {
+          throw new Error('Hapus atau pindahkan akun orang tua yang terhubung ke siswa ini lebih dulu.');
+        }
+      }
       ss_().getSheetByName(SHEET.USERS).deleteRow(u._row);
       return { success: true, message: 'Akun ' + u.nama + ' dihapus. Riwayat catatan tetap tersimpan.' };
+    });
+  });
+}
+function deleteCatatanPoin(token, idCatatan) {
+  return guard_(() => {
+    requireSession_(token, ['Admin']);
+    return withLock_(() => {
+      const sc = ss_().getSheetByName(SHEET.CATATAN);
+      const rows = sc.getDataRange().getValues();
+      const idx = rows.findIndex((r, i) => i > 0 && String(r[0]) === String(idCatatan));
+      if (idx < 0) throw new Error('Catatan poin tidak ditemukan.');
+      const idSiswa = String(rows[idx][2]);
+      const delta = Number(rows[idx][7]);
+      const s = users_().filter(u => u.id === idSiswa && u.role === 'Murid')[0];
+      if (s) {
+        const baru = Math.max(0, Math.min(100, s.poin - delta));
+        const su = ss_().getSheetByName(SHEET.USERS);
+        su.getRange(s._row, 6).setValue(baru);
+        su.getRange(s._row, 7).setValue(hitungStatusSP(baru));
+      }
+      sc.deleteRow(idx + 1);
+      return { success: true, message: 'Catatan ' + idCatatan + ' dihapus dan poin siswa disesuaikan.' };
+    });
+  });
+}
+function deleteKonseling(token, idKonseling) {
+  return guard_(() => {
+    requireSession_(token, ['Admin']);
+    return withLock_(() => {
+      const k = konseling_().filter(x => x.id === String(idKonseling))[0];
+      if (!k) throw new Error('Data konseling tidak ditemukan.');
+      ss_().getSheetByName(SHEET.KONSELING).deleteRow(k._row);
+      return { success: true, message: 'Data konseling ' + k.id + ' dihapus.' };
+    });
+  });
+}
+function deleteLaporanGuru(token, idLaporan) {
+  return guard_(() => {
+    requireSession_(token, ['Admin']);
+    return withLock_(() => {
+      const l = laporan_().filter(x => x.id === String(idLaporan))[0];
+      if (!l) throw new Error('Laporan guru tidak ditemukan.');
+      ss_().getSheetByName(SHEET.LAPORAN).deleteRow(l._row);
+      return { success: true, message: 'Laporan ' + l.id + ' dihapus.' };
+    });
+  });
+}
+function adminTambahKonseling(token, p) {
+  return guard_(() => {
+    requireSession_(token, ['Admin']);
+    return withLock_(() => {
+      p = p || {};
+      const s = users_().filter(u => u.id === String(p.idSiswa || '') && u.role === 'Murid')[0];
+      if (!s) throw new Error('Siswa tidak ditemukan.');
+      if (TOPIK.indexOf(p.topik) < 0) throw new Error('Topik tidak valid.');
+      const cerita = String(p.cerita || '').trim().slice(0, 500);
+      if (!cerita) throw new Error('Keterangan / topik ringkas wajib diisi.');
+      const jadwal = String(p.jadwal || '').trim().slice(0, 100);
+      const catatan = String(p.catatanBK || '').trim().slice(0, 200);
+      const sk = ss_().getSheetByName(SHEET.KONSELING);
+      sk.appendRow([nextId_(sk, 'KS-', 2001), Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd HH:mm'), s.id, s.nama, s.kelasInfo, p.topik, cerita, jadwal ? 'Disetujui & Terjadwal' : 'Menunggu', jadwal || '-', catatan || '-']);
+      return { success: true, message: 'Data konseling untuk ' + s.nama + ' ditambahkan.' };
+    });
+  });
+}
+function saveSchoolConfig(token, p) {
+  return guard_(() => {
+    requireSession_(token, ['Admin']);
+    return withLock_(() => {
+      p = p || {};
+      const nama = String(p.namaSekolah || '').trim().slice(0, 150);
+      if (!nama) throw new Error('Nama sekolah wajib diisi.');
+      const cfg = ss_().getSheetByName(SHEET.CONFIG);
+      cfg.clearContents();
+      cfg.appendRow(['Key', 'Value']);
+      cfg.appendRow(['Nama_Sekolah', nama]);
+      cfg.appendRow(['Alamat', String(p.alamat || '').trim().slice(0, 250)]);
+      cfg.appendRow(['Tahun_Ajaran', String(p.tahunAjaran || '').trim().slice(0, 30)]);
+      header_(cfg, 2);
+      return { success: true, message: 'Pengaturan sekolah berhasil disimpan.' };
     });
   });
 }
