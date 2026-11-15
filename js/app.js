@@ -12,6 +12,8 @@
   let isTabelBKExpanded = true;
   let bkStatusFilter = 'all'; // 'all' | 'sp' | 'skorsing'
   let guruOnlyBinaan = false;
+  let useUsernameLogin = false;
+  let adminActiveView = 'bk';
   let sessionToken = null;
   let loadingTimer = null;
 
@@ -19,7 +21,8 @@
     Murid: 'Murid',
     Guru: 'Guru / Wali Kelas',
     Ortu: 'Orang Tua',
-    Guru_BK: 'Guru BK'
+    Guru_BK: 'Guru BK',
+    Admin: 'Administrator'
   };
 
   function esc(v) {
@@ -128,6 +131,34 @@
     btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
   }
 
+  function resetLoginInputMode() {
+    useUsernameLogin = false;
+    $('loginAccountSelect').style.display = '';
+    $('loginAccountSelect').required = true;
+    $('loginUsernameInput').style.display = 'none';
+    $('loginUsernameInput').required = false;
+    $('loginUsernameInput').value = '';
+    $('loginAccountLabel').setAttribute('for', 'loginAccountSelect');
+    $('loginAccountLabel').innerHTML = `Pilih Akun (<span id="selectedRoleLabel">${esc(ROLE_LABELS[selectedLoginRole] || selectedLoginRole)}</span>)`;
+    $('btnToggleLoginMode').innerText = 'Pakai Username';
+  }
+
+  function toggleLoginInputMode() {
+    useUsernameLogin = !useUsernameLogin;
+    if (useUsernameLogin) {
+      $('loginAccountSelect').style.display = 'none';
+      $('loginAccountSelect').required = false;
+      $('loginUsernameInput').style.display = '';
+      $('loginUsernameInput').required = true;
+      $('loginAccountLabel').setAttribute('for', 'loginUsernameInput');
+      $('loginAccountLabel').innerText = 'ID / Username Akun';
+      $('btnToggleLoginMode').innerText = 'Pilih dari Daftar';
+      $('loginUsernameInput').focus();
+    } else {
+      resetLoginInputMode();
+    }
+  }
+
   function forceLogout() {
     currentUser = null;
     sessionToken = null;
@@ -135,10 +166,13 @@
     isTabelBKExpanded = true;
     bkStatusFilter = 'all';
     guruOnlyBinaan = false;
+    adminActiveView = 'bk';
     $('mainAppSection').style.display = 'none';
     $('loginSection').style.display = 'flex';
     $('loginPassword').value = '';
     $('counselingRequestCard').style.display = '';
+    $('adminControlBar').style.display = 'none';
+    resetLoginInputMode();
     hideLoading();
     loadLoginAccounts();
   }
@@ -193,10 +227,10 @@
 
   async function handleLogin(e) {
     e.preventDefault();
-    const userId = $('loginAccountSelect').value;
+    const userId = useUsernameLogin ? $('loginUsernameInput').value.trim() : $('loginAccountSelect').value;
     const password = $('loginPassword').value;
     if (!userId) {
-      showToast('Silakan pilih akun terlebih dahulu.', 'warning');
+      showToast(useUsernameLogin ? 'Silakan masukkan ID / username terlebih dahulu.' : 'Silakan pilih akun terlebih dahulu.', 'warning');
       return;
     }
 
@@ -223,7 +257,9 @@
     $('mainAppSection').style.display = 'block';
     $('navUserName').innerText = currentUser.nama.split(',')[0];
     $('navRoleBadge').innerText = ROLE_LABELS[currentUser.role] || currentUser.role.replace('_', ' ');
-    $('btnNavSettings').style.display = currentUser.role === 'Guru_BK' ? 'inline-flex' : 'none';
+    $('btnNavSettings').style.display = (currentUser.role === 'Guru_BK' || currentUser.role === 'Admin') ? 'inline-flex' : 'none';
+    $('adminControlBar').style.display = currentUser.role === 'Admin' ? 'block' : 'none';
+    adminActiveView = 'bk';
     refreshAllData();
   }
 
@@ -237,12 +273,15 @@
     isTabelBKExpanded = true;
     bkStatusFilter = 'all';
     guruOnlyBinaan = false;
+    adminActiveView = 'bk';
     $('loginPassword').value = '';
     $('bkSearchKelasInput').value = '';
     $('guruSearchNama').value = '';
     $('counselingRequestCard').style.display = '';
+    $('adminControlBar').style.display = 'none';
     $('mainAppSection').style.display = 'none';
     $('loginSection').style.display = 'flex';
+    resetLoginInputMode();
     loadLoginAccounts();
     showToast('Anda telah keluar dari sistem.');
   }
@@ -354,19 +393,62 @@
     }
   }
 
+  function setAdminView(mode, btnEl) {
+    adminActiveView = mode;
+    isSettingsOpen = false;
+    document.querySelectorAll('#adminViewTabs .filter-pill').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    $('adminPreviewStudentSelect').style.display = mode === 'murid' ? 'inline-block' : 'none';
+    renderActiveRoleView();
+  }
+
+  function populateAdminPreviewStudents() {
+    const sel = $('adminPreviewStudentSelect');
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '';
+    appData.students.forEach(s => {
+      sel.innerHTML += `<option value="${esc(s.id)}">${esc(s.nama)} (${esc(s.kelasInfo)})</option>`;
+    });
+    if (prev && appData.students.some(s => s.id === prev)) sel.value = prev;
+  }
+
+  function renderAdminPreviewStudent() {
+    const sid = $('adminPreviewStudentSelect').value || (appData.students[0] && appData.students[0].id);
+    if (sid) renderDashboardMurid(sid);
+  }
+
   function renderActiveRoleView() {
     ['viewGuruBK', 'viewMurid', 'viewGuru', 'viewOrtu', 'viewPengaturan'].forEach(id => {
       $(id).style.display = 'none';
     });
 
+    const isOperator = currentUser.role === 'Guru_BK' || currentUser.role === 'Admin';
     const btnSettings = $('btnNavSettings');
-    if (isSettingsOpen && currentUser.role === 'Guru_BK') {
+    if (isSettingsOpen && isOperator) {
       btnSettings.classList.replace('btn-outline-secondary', 'btn-primary');
       $('viewPengaturan').style.display = 'block';
       renderSettingsView();
       return;
     }
     if (btnSettings) btnSettings.classList.replace('btn-primary', 'btn-outline-secondary');
+
+    if (currentUser.role === 'Admin') {
+      populateAdminPreviewStudents();
+      $('adminPreviewStudentSelect').style.display = adminActiveView === 'murid' ? 'inline-block' : 'none';
+      if (adminActiveView === 'guru') {
+        $('viewGuru').style.display = 'block';
+        renderDashboardGuru();
+      } else if (adminActiveView === 'murid') {
+        $('viewMurid').style.display = 'block';
+        $('counselingRequestCard').style.display = 'none';
+        renderAdminPreviewStudent();
+      } else {
+        $('viewGuruBK').style.display = 'block';
+        renderDashboardGuruBK();
+      }
+      return;
+    }
 
     if (currentUser.role === 'Guru_BK') {
       $('viewGuruBK').style.display = 'block';
@@ -1061,7 +1143,7 @@
 
   function openCatatPoinModal() {
     $('inputCatatanKeterangan').value = '';
-    const isGuru = currentUser && currentUser.role === 'Guru';
+    const isGuru = currentUser && (currentUser.role === 'Guru' || (currentUser.role === 'Admin' && adminActiveView === 'guru'));
     $('modalCatatPoinTitle').innerHTML = isGuru
       ? '<i class="bi bi-send-plus text-primary me-2" aria-hidden="true"></i>Ajukan Laporan Siswa ke BK'
       : '<i class="bi bi-journal-plus text-primary me-2" aria-hidden="true"></i>Catat Pelanggaran / Prestasi';
@@ -1080,7 +1162,7 @@
     const jenis = document.querySelector('input[name="jenisCatatan"]:checked').value;
     const poin = $('inputCatatanPoin').value;
     const keterangan = $('inputCatatanKeterangan').value.trim();
-    const isGuru = currentUser && currentUser.role === 'Guru';
+    const isGuru = currentUser && (currentUser.role === 'Guru' || (currentUser.role === 'Admin' && adminActiveView === 'guru'));
     const actionName = isGuru ? 'ajukanLaporanGuru' : 'tambahCatatanPoin';
 
     showLoading(isGuru ? 'Mengirim laporan ke Guru BK...' : 'Menyimpan catatan & menghitung ulang poin...');
@@ -1194,9 +1276,7 @@
             <button type="button" class="btn btn-sm btn-outline-primary me-1" data-edit-user="${esc(u.id)}" aria-label="Edit ${esc(u.nama)}">
               <i class="bi bi-pencil-square" aria-hidden="true"></i>
             </button>
-            <button type="button" class="btn btn-sm btn-outline-danger" data-delete-user="${esc(u.id)}" aria-label="Hapus ${esc(u.nama)}">
-              <i class="bi bi-trash" aria-hidden="true"></i>
-            </button>
+            ${u.role === 'Admin' ? '' : `<button type="button" class="btn btn-sm btn-outline-danger" data-delete-user="${esc(u.id)}" aria-label="Hapus ${esc(u.nama)}"><i class="bi bi-trash" aria-hidden="true"></i></button>`}
           </td>
         </tr>
       `;
@@ -1213,8 +1293,20 @@
     $('formUserTitle').innerText = 'Edit Data Akun';
     $('crudUserMode').value = 'edit';
     $('crudUserId').value = u.id;
-    $('crudUserRole').value = u.role;
-    $('crudUserRole').disabled = true;
+    const roleSel = $('crudUserRole');
+    let adminOpt = roleSel.querySelector('option[value="Admin"]');
+    if (u.role === 'Admin') {
+      if (!adminOpt) {
+        adminOpt = document.createElement('option');
+        adminOpt.value = 'Admin';
+        adminOpt.textContent = 'Admin (Operator)';
+        roleSel.appendChild(adminOpt);
+      }
+    } else if (adminOpt) {
+      adminOpt.remove();
+    }
+    roleSel.value = u.role;
+    roleSel.disabled = true;
     $('crudUserNama').value = u.nama;
     $('crudUserKelas').value = u.kelasInfo;
     $('crudUserPassword').value = '';
@@ -1227,7 +1319,11 @@
     $('formUserTitle').innerText = 'Tambah Akun Baru';
     $('crudUserMode').value = 'add';
     $('crudUserId').value = '';
-    $('crudUserRole').disabled = false;
+    const roleSel = $('crudUserRole');
+    const adminOpt = roleSel.querySelector('option[value="Admin"]');
+    if (adminOpt) adminOpt.remove();
+    roleSel.disabled = false;
+    roleSel.value = 'Murid';
     $('crudUserNama').value = '';
     $('crudUserKelas').value = '';
     $('crudUserPassword').value = '';
@@ -1368,6 +1464,9 @@
   Object.assign(globalScope, {
     selectLoginRole,
     handleLogin,
+    toggleLoginInputMode,
+    setAdminView,
+    renderAdminPreviewStudent,
     togglePw,
     openConnectionModal,
     toggleConnFields,

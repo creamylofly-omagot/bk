@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS public.ebk_pengaturan_sekolah (
 
 CREATE TABLE IF NOT EXISTS public.ebk_users (
   id TEXT PRIMARY KEY,
-  role TEXT NOT NULL CHECK (role IN ('Murid', 'Guru', 'Ortu', 'Guru_BK')),
+  role TEXT NOT NULL CHECK (role IN ('Murid', 'Guru', 'Ortu', 'Guru_BK', 'Admin')),
   nama TEXT NOT NULL,
   password TEXT NOT NULL,
   kelas_info TEXT NOT NULL,
@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS public.ebk_users (
   terkait_id_siswa TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE public.ebk_users DROP CONSTRAINT IF EXISTS ebk_users_role_check;
+ALTER TABLE public.ebk_users ADD CONSTRAINT ebk_users_role_check CHECK (role IN ('Murid', 'Guru', 'Ortu', 'Guru_BK', 'Admin'));
+
 
 CREATE TABLE IF NOT EXISTS public.ebk_catatan_poin (
   seq BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -302,6 +305,10 @@ BEGIN
       ('OT03', 'Ortu', 'Bpk. Hendra (Wali dari Dimas)', v_pw, 'Ortu XI TKJ 1', 100, '-', 'Tidak', 'SW04');
   END IF;
 
+  INSERT INTO public.ebk_users (id, role, nama, password, kelas_info, poin, status_sp, skorsing, terkait_id_siswa)
+  VALUES ('admin123', 'Admin', 'Administrator / Operator Sistem', public.ebk_hash_pw('123admin'), 'Operator Pusat', 100, '-', 'Tidak', '')
+  ON CONFLICT (id) DO NOTHING;
+
   IF NOT EXISTS (SELECT 1 FROM public.ebk_catatan_poin) THEN
     INSERT INTO public.ebk_catatan_poin (id, tanggal, id_siswa, nama_siswa, kelas, jenis, keterangan, perubahan_poin, pelapor) VALUES
       ('CT-1001', v_today, 'SW01', 'Aminah', 'XI RPL 1', 'Prestasi', 'Juara 1 LKS Web Technologies Tingkat Kota Binjai', 15, 'Samsudin, M.Pd'),
@@ -350,7 +357,8 @@ BEGIN
     'kelasInfo', kelas_info
   ) ORDER BY created_at, id), '[]'::JSONB)
   INTO v_data
-  FROM public.ebk_users;
+  FROM public.ebk_users
+  WHERE role <> 'Admin';
 
   RETURN jsonb_build_object('success', true, 'data', v_data);
 END;
@@ -453,7 +461,7 @@ SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 BEGIN
-  PERFORM public.ebk_require_session(p_token, ARRAY['Guru_BK']);
+  PERFORM public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
   PERFORM public.ebk_seed_data();
   RETURN jsonb_build_object('success', true, 'message', 'Struktur database Supabase sudah lengkap.');
 EXCEPTION WHEN OTHERS THEN
@@ -481,9 +489,10 @@ DECLARE
 BEGIN
   v_me := public.ebk_require_session(p_token);
 
-  IF v_me.role = 'Guru_BK' THEN
+  IF v_me.role IN ('Guru_BK', 'Admin') THEN
     SELECT COALESCE(jsonb_agg(public.ebk_pub_user(u) ORDER BY u.created_at, u.id), '[]'::JSONB)
-    INTO v_users FROM public.ebk_users u;
+    INTO v_users FROM public.ebk_users u
+    WHERE (v_me.role = 'Admin' OR u.role <> 'Admin');
 
     SELECT COALESCE(jsonb_agg(public.ebk_pub_user(u) ORDER BY u.created_at, u.id), '[]'::JSONB)
     INTO v_students FROM public.ebk_users u WHERE u.role = 'Murid';
@@ -589,7 +598,7 @@ DECLARE
   v_msg TEXT;
   v_id TEXT;
 BEGIN
-  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK']);
+  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
 
   IF p_jenis NOT IN ('Pelanggaran', 'Prestasi') THEN
     RETURN jsonb_build_object('success', false, 'message', 'Jenis catatan tidak valid.');
@@ -652,7 +661,7 @@ DECLARE
   v_ket TEXT := left(btrim(COALESCE(p_keterangan, '')), 300);
   v_id TEXT;
 BEGIN
-  v_me := public.ebk_require_session(p_token, ARRAY['Guru']);
+  v_me := public.ebk_require_session(p_token, ARRAY['Guru', 'Admin']);
 
   IF p_jenis NOT IN ('Pelanggaran', 'Prestasi') THEN
     RETURN jsonb_build_object('success', false, 'message', 'Jenis laporan tidak valid.');
@@ -714,7 +723,7 @@ DECLARE
   v_ct_id TEXT;
   v_now TEXT := to_char(now() AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI');
 BEGIN
-  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK']);
+  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
 
   IF p_keputusan NOT IN ('Setujui', 'Tolak') THEN
     RETURN jsonb_build_object('success', false, 'message', 'Keputusan tidak valid.');
@@ -796,7 +805,7 @@ DECLARE
   v_catatan TEXT := left(btrim(COALESCE(p_catatan_bk, '')), 200);
   v_k public.ebk_konseling;
 BEGIN
-  PERFORM public.ebk_require_session(p_token, ARRAY['Guru_BK']);
+  PERFORM public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
 
   SELECT * INTO v_k FROM public.ebk_konseling WHERE id = COALESCE(p_id, '') FOR UPDATE;
   IF NOT FOUND THEN
@@ -836,7 +845,7 @@ DECLARE
   v_s public.ebk_users;
   v_id TEXT;
 BEGIN
-  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK']);
+  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
 
   IF p_skorsing NOT IN ('Ya', 'Tidak') THEN
     RETURN jsonb_build_object('success', false, 'message', 'Status skorsing tidak valid.');
@@ -934,7 +943,7 @@ DECLARE
   v_catatan TEXT := left(btrim(COALESCE(p_catatan_bk, '')), 200);
   v_k public.ebk_konseling;
 BEGIN
-  PERFORM public.ebk_require_session(p_token, ARRAY['Guru_BK']);
+  PERFORM public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
 
   IF v_jadwal = '' THEN
     RETURN jsonb_build_object('success', false, 'message', 'Jadwal wajib diisi.');
@@ -977,7 +986,7 @@ DECLARE
   v_alasan TEXT := left(btrim(COALESCE(p_alasan, '')), 200);
   v_k public.ebk_konseling;
 BEGIN
-  PERFORM public.ebk_require_session(p_token, ARRAY['Guru_BK']);
+  PERFORM public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
 
   SELECT * INTO v_k FROM public.ebk_konseling WHERE id = COALESCE(p_id, '') FOR UPDATE;
   IF NOT FOUND THEN
@@ -1025,10 +1034,13 @@ DECLARE
   v_new_id TEXT;
   v_u public.ebk_users;
 BEGIN
-  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK']);
+  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
 
-  IF p_role NOT IN ('Murid', 'Guru', 'Ortu', 'Guru_BK') THEN
+  IF p_role NOT IN ('Murid', 'Guru', 'Ortu', 'Guru_BK', 'Admin') THEN
     RETURN jsonb_build_object('success', false, 'message', 'Peran tidak valid.');
+  END IF;
+  IF p_role = 'Admin' AND v_me.role <> 'Admin' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Hanya Administrator yang dapat mengelola akun Admin.');
   END IF;
   IF v_nama = '' OR v_kelas = '' THEN
     RETURN jsonb_build_object('success', false, 'message', 'Nama dan kelas/info wajib diisi.');
@@ -1049,7 +1061,8 @@ BEGIN
       WHEN 'Murid' THEN 'SW'
       WHEN 'Guru' THEN 'GR'
       WHEN 'Ortu' THEN 'OT'
-      ELSE 'BK'
+      WHEN 'Guru_BK' THEN 'BK'
+      ELSE 'AD'
     END;
     v_new_id := public.ebk_next_id('users', v_prefix, 1, 2);
     INSERT INTO public.ebk_users (id, role, nama, password, kelas_info, poin, status_sp, skorsing, terkait_id_siswa)
@@ -1065,7 +1078,10 @@ BEGIN
     IF NOT FOUND THEN
       RETURN jsonb_build_object('success', false, 'message', 'Akun tidak ditemukan.');
     END IF;
-    IF v_u.id = v_me.id AND p_role <> 'Guru_BK' THEN
+    IF v_u.role = 'Admin' AND v_me.role <> 'Admin' THEN
+      RETURN jsonb_build_object('success', false, 'message', 'Hanya Administrator yang dapat mengubah akun Admin.');
+    END IF;
+    IF v_u.id = v_me.id AND p_role <> v_u.role THEN
       RETURN jsonb_build_object('success', false, 'message', 'Anda tidak bisa mengubah peran akun Anda sendiri.');
     END IF;
     IF v_u.role <> p_role THEN
@@ -1109,11 +1125,14 @@ DECLARE
   v_u public.ebk_users;
   v_bk_count INTEGER;
 BEGIN
-  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK']);
+  v_me := public.ebk_require_session(p_token, ARRAY['Guru_BK', 'Admin']);
 
   SELECT * INTO v_u FROM public.ebk_users WHERE id = COALESCE(p_user_id, '') FOR UPDATE;
   IF NOT FOUND THEN
     RETURN jsonb_build_object('success', false, 'message', 'Akun tidak ditemukan.');
+  END IF;
+  IF v_u.role = 'Admin' THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Akun Administrator tidak dapat dihapus.');
   END IF;
   IF v_u.id = v_me.id THEN
     RETURN jsonb_build_object('success', false, 'message', 'Anda tidak bisa menghapus akun Anda sendiri.');

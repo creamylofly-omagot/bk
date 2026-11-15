@@ -118,6 +118,7 @@ async function runBackendBehaviorTests() {
   assert.equal(accs.success, true);
   assert.equal(accs.data.length, 13);
   assert.ok(accs.data.every(a => !('password' in a)));
+  assert.ok(accs.data.every(a => a.id !== 'admin123' && a.role !== 'Admin'));
 
   // 3. Rate limiting (5 fails lock out 6th valid attempt)
   for (let i = 0; i < 5; i++) {
@@ -243,6 +244,29 @@ async function runBackendBehaviorTests() {
   assert.equal(afterVerify.catatan[0].pelapor, 'Samsudin, M.Pd');
   assert.equal(afterVerify.catatan[0].perubahanPoin, -25);
 
+
+  // 7c. Special Admin account (admin123 / 123admin) hidden from dropdown, full access & protected from Guru BK
+  assert.ok(afterVerify.users.every(u => u.id !== 'admin123'));
+  assert.equal((await LocalBackend.dispatch('deleteUserAccount', [bk.token, 'admin123'])).success, false);
+  assert.equal(
+    (await LocalBackend.dispatch('saveUserAccount', [bk.token, { mode: 'edit', id: 'admin123', role: 'Admin', nama: 'X', kelasInfo: 'Y' }])).success,
+    false
+  );
+
+  const adm = await LocalBackend.dispatch('loginUser', ['admin123', '123admin']);
+  assert.equal(adm.success, true);
+  assert.equal(adm.user.role, 'Admin');
+  const admData = await LocalBackend.dispatch('getAllAppData', [adm.token]);
+  assert.ok(admData.users.some(u => u.id === 'admin123'));
+  assert.equal((await LocalBackend.dispatch('deleteUserAccount', [adm.token, 'admin123'])).success, false);
+  assert.equal(
+    (await LocalBackend.dispatch('tambahCatatanPoin', [adm.token, { idSiswa: 'SW04', jenis: 'Prestasi', poin: 10, keterangan: 'Kontrol Admin' }])).success,
+    true
+  );
+  assert.equal(
+    (await LocalBackend.dispatch('ajukanLaporanGuru', [adm.token, { idSiswa: 'SW04', jenis: 'Prestasi', poin: 5, keterangan: 'Tes Mode Guru Admin' }])).success,
+    true
+  );
   // 8. Password change & logout invalidates token
   const chPw = await LocalBackend.dispatch('ubahSandi', [sw01.token, '123456', 'sandibaru99']);
   assert.equal(chPw.success, true);

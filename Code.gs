@@ -9,7 +9,7 @@
 const SHEET = { USERS: 'Users', CATATAN: 'Catatan_Poin', KONSELING: 'Konseling', CONFIG: 'Pengaturan_Sekolah', LAPORAN: 'Laporan_Guru' };
 const TZ = 'Asia/Jakarta';
 const SESSION_TTL = 21600; // 6 jam
-const ROLES = ['Murid', 'Guru', 'Ortu', 'Guru_BK'];
+const ROLES = ['Murid', 'Guru', 'Ortu', 'Guru_BK', 'Admin'];
 const TOPIK = ['Pribadi & Sosial', 'Akademik & Belajar', 'Karir, PKL & Kuliah', 'Masalah Kedisiplinan'];
 
 function doGet(e) {
@@ -211,6 +211,9 @@ function setupDatabase_() {
       ['OT03', 'Ortu', 'Bpk. Hendra (Wali dari Dimas)', pw, 'Ortu XI TKJ 1', 100, '-', 'Tidak', 'SW04']
     ].forEach(r => us.appendRow(r));
   }
+  if (!users_().some(u => u.id === 'admin123')) {
+    us.appendRow(['admin123', 'Admin', 'Administrator / Operator Sistem', hash_('123admin'), 'Operator Pusat', 100, '-', 'Tidak', '']);
+  }
 
   const ct = sheet_(ss, SHEET.CATATAN);
   if (ct.getLastRow() === 0) {
@@ -247,7 +250,7 @@ function setupDatabase_() {
 
 // ---------- API: login & sesi ----------
 function getLoginAccounts() {
-  return guard_(() => ({ success: true, data: users_().map(u => ({ id: u.id, role: u.role, nama: u.nama, kelasInfo: u.kelasInfo })) }));
+  return guard_(() => ({ success: true, data: users_().filter(u => u.role !== 'Admin').map(u => ({ id: u.id, role: u.role, nama: u.nama, kelasInfo: u.kelasInfo })) }));
 }
 function loginUser(userId, password) {
   return guard_(() => {
@@ -282,7 +285,7 @@ function ubahSandi(token, lama, baru) {
   }));
 }
 function jalankanSetup(token) {
-  return guard_(() => { requireSession_(token, ['Guru_BK']); setupDatabase_(); return { success: true, message: 'Struktur database sudah lengkap.' }; });
+  return guard_(() => { requireSession_(token, ['Guru_BK', 'Admin']); setupDatabase_(); return { success: true, message: 'Struktur database sudah lengkap.' }; });
 }
 
 // ---------- API: data (disaring sesuai peran) ----------
@@ -292,8 +295,8 @@ function getAllAppData(token) {
     const all = users_();
     let students = all.filter(u => u.role === 'Murid');
     let catatan = catatan_(), konseling = konseling_(), laporan = [], users = [];
-    if (me.role === 'Guru_BK') {
-      users = all.map(pub_);
+    if (me.role === 'Guru_BK' || me.role === 'Admin') {
+      users = all.filter(u => me.role === 'Admin' || u.role !== 'Admin').map(pub_);
       laporan = laporan_();
     } else if (me.role === 'Guru') {
       catatan = catatan.filter(c => c.pelapor === me.nama);
@@ -313,7 +316,7 @@ function getAllAppData(token) {
 // ---------- API: poin ----------
 function tambahCatatanPoin(token, p) {
   return guard_(() => {
-    const me = requireSession_(token, ['Guru_BK']);
+    const me = requireSession_(token, ['Guru_BK', 'Admin']);
     return withLock_(() => {
       p = p || {};
       if (['Pelanggaran', 'Prestasi'].indexOf(p.jenis) < 0) throw new Error('Jenis catatan tidak valid.');
@@ -340,7 +343,7 @@ function tambahCatatanPoin(token, p) {
 }
 function ajukanLaporanGuru(token, p) {
   return guard_(() => {
-    const me = requireSession_(token, ['Guru']);
+    const me = requireSession_(token, ['Guru', 'Admin']);
     return withLock_(() => {
       p = p || {};
       if (['Pelanggaran', 'Prestasi'].indexOf(p.jenis) < 0) throw new Error('Jenis laporan tidak valid.');
@@ -359,7 +362,7 @@ function ajukanLaporanGuru(token, p) {
 }
 function verifikasiLaporanGuru(token, idLaporan, keputusan, bobotFinal, catatanBK) {
   return guard_(() => {
-    const me = requireSession_(token, ['Guru_BK']);
+    const me = requireSession_(token, ['Guru_BK', 'Admin']);
     return withLock_(() => {
       if (['Setujui', 'Tolak'].indexOf(keputusan) < 0) throw new Error('Keputusan tidak valid.');
       const l = laporan_().filter(x => x.id === String(idLaporan))[0];
@@ -399,7 +402,7 @@ function verifikasiLaporanGuru(token, idLaporan, keputusan, bobotFinal, catatanB
 }
 function updateTindakanSiswa(token, idSiswa, skorsing, resetPoin) {
   return guard_(() => {
-    const me = requireSession_(token, ['Guru_BK']);
+    const me = requireSession_(token, ['Guru_BK', 'Admin']);
     return withLock_(() => {
       if (['Ya', 'Tidak'].indexOf(skorsing) < 0) throw new Error('Status skorsing tidak valid.');
       const s = users_().filter(u => u.id === String(idSiswa) && u.role === 'Murid')[0];
@@ -437,7 +440,7 @@ function ajukanKonseling(token, p) {
 }
 function setujuiKonseling(token, id, jadwal, catatanBK) {
   return guard_(() => {
-    requireSession_(token, ['Guru_BK']);
+    requireSession_(token, ['Guru_BK', 'Admin']);
     return withLock_(() => {
       jadwal = String(jadwal || '').trim().slice(0, 100);
       if (!jadwal) throw new Error('Jadwal wajib diisi.');
@@ -454,7 +457,7 @@ function setujuiKonseling(token, id, jadwal, catatanBK) {
 }
 function tolakKonseling(token, id, alasan) {
   return guard_(() => {
-    requireSession_(token, ['Guru_BK']);
+    requireSession_(token, ['Guru_BK', 'Admin']);
     return withLock_(() => {
       const k = konseling_().filter(x => x.id === String(id))[0];
       if (!k) throw new Error('Pengajuan tidak ditemukan.');
@@ -468,7 +471,7 @@ function tolakKonseling(token, id, alasan) {
 }
 function selesaikanKonseling(token, id, catatanBK) {
   return guard_(() => {
-    requireSession_(token, ['Guru_BK']);
+    requireSession_(token, ['Guru_BK', 'Admin']);
     return withLock_(() => {
       const k = konseling_().filter(x => x.id === String(id))[0];
       if (!k) throw new Error('Pengajuan tidak ditemukan.');
@@ -486,12 +489,13 @@ function selesaikanKonseling(token, id, catatanBK) {
 // ---------- API: kelola akun (hanya Guru BK) ----------
 function saveUserAccount(token, p) {
   return guard_(() => {
-    const me = requireSession_(token, ['Guru_BK']);
+    const me = requireSession_(token, ['Guru_BK', 'Admin']);
     return withLock_(() => {
       p = p || {};
       const nama = String(p.nama || '').trim().slice(0, 100);
       const kelasInfo = String(p.kelasInfo || '').trim().slice(0, 100);
       if (ROLES.indexOf(p.role) < 0) throw new Error('Peran tidak valid.');
+      if (p.role === 'Admin' && me.role !== 'Admin') throw new Error('Hanya Administrator yang dapat mengelola akun Admin.');
       if (!nama || !kelasInfo) throw new Error('Nama dan kelas/info wajib diisi.');
       const all = users_();
       let terkait = '';
@@ -502,14 +506,15 @@ function saveUserAccount(token, p) {
       const sh = ss_().getSheetByName(SHEET.USERS);
       if (p.mode === 'add') {
         if (String(p.password || '').length < 6) throw new Error('Sandi minimal 6 karakter.');
-        const prefix = { Murid: 'SW', Guru: 'GR', Ortu: 'OT', Guru_BK: 'BK' }[p.role];
+        const prefix = { Murid: 'SW', Guru: 'GR', Ortu: 'OT', Guru_BK: 'BK', Admin: 'AD' }[p.role];
         sh.appendRow([nextId_(sh, prefix, 1, 2), p.role, nama, hash_(p.password), kelasInfo, 100, p.role === 'Murid' ? 'Aman' : '-', 'Tidak', terkait]);
         return { success: true, message: 'Akun ' + nama + ' berhasil ditambahkan.' };
       }
       if (p.mode === 'edit') {
         const u = all.filter(x => x.id === String(p.id))[0];
         if (!u) throw new Error('Akun tidak ditemukan.');
-        if (u.id === me.id && p.role !== 'Guru_BK') throw new Error('Anda tidak bisa mengubah peran akun Anda sendiri.');
+        if (u.role === 'Admin' && me.role !== 'Admin') throw new Error('Hanya Administrator yang dapat mengubah akun Admin.');
+        if (u.id === me.id && p.role !== u.role) throw new Error('Anda tidak bisa mengubah peran akun Anda sendiri.');
         if (u.role !== p.role) throw new Error('Peran akun tidak bisa diubah. Buat akun baru jika perlu.');
         sh.getRange(u._row, 3).setValue(nama);
         sh.getRange(u._row, 5).setValue(kelasInfo);
@@ -526,11 +531,12 @@ function saveUserAccount(token, p) {
 }
 function deleteUserAccount(token, userId) {
   return guard_(() => {
-    const me = requireSession_(token, ['Guru_BK']);
+    const me = requireSession_(token, ['Guru_BK', 'Admin']);
     return withLock_(() => {
       const all = users_();
       const u = all.filter(x => x.id === String(userId))[0];
       if (!u) throw new Error('Akun tidak ditemukan.');
+      if (u.role === 'Admin') throw new Error('Akun Administrator tidak dapat dihapus.');
       if (u.id === me.id) throw new Error('Anda tidak bisa menghapus akun Anda sendiri.');
       if (u.role === 'Guru_BK' && all.filter(x => x.role === 'Guru_BK').length <= 1) throw new Error('Minimal harus ada satu akun Guru BK.');
       if (u.role === 'Murid' && all.some(x => x.role === 'Ortu' && x.terkaitIdSiswa === u.id))

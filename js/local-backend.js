@@ -6,7 +6,7 @@
   'use strict';
 
   const DB_KEY = 'ebk_smkn1_binjai_db_v1';
-  const ROLES = ['Murid', 'Guru', 'Ortu', 'Guru_BK'];
+  const ROLES = ['Murid', 'Guru', 'Ortu', 'Guru_BK', 'Admin'];
   const TOPIK = ['Pribadi & Sosial', 'Akademik & Belajar', 'Karir, PKL & Kuliah', 'Masalah Kedisiplinan'];
   const SESSION_TTL_MS = 21600 * 1000; // 6 jam
 
@@ -72,6 +72,7 @@
   async function createInitialDb() {
     const salt = randomUuid();
     const pw = await hashPw(salt, '123456');
+    const adminPw = await hashPw(salt, '123admin');
     const today = formatJakarta(new Date(), false);
     const now = formatJakarta(new Date(), true);
 
@@ -96,6 +97,7 @@
         { id: 'OT01', role: 'Ortu', nama: 'Bpk. Ahmad (Wali dari Aminah)', password: pw, kelasInfo: 'Ortu XI RPL 1', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: 'SW01' },
         { id: 'OT02', role: 'Ortu', nama: 'Ibu Siti (Wali dari M. Rizky)', password: pw, kelasInfo: 'Ortu XI RPL 1', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: 'SW02' },
         { id: 'OT03', role: 'Ortu', nama: 'Bpk. Hendra (Wali dari Dimas)', password: pw, kelasInfo: 'Ortu XI TKJ 1', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: 'SW04' }
+        , { id: 'admin123', role: 'Admin', nama: 'Administrator / Operator Sistem', password: adminPw, kelasInfo: 'Operator Pusat', poin: 100, statusSP: '-', skorsing: 'Tidak', terkaitIdSiswa: '' }
       ],
       catatan: [
         { id: 'CT-1001', tanggal: today, idSiswa: 'SW01', namaSiswa: 'Aminah', kelas: 'XI RPL 1', jenis: 'Prestasi', keterangan: 'Juara 1 LKS Web Technologies Tingkat Kota Binjai', perubahanPoin: 15, pelapor: 'Samsudin, M.Pd' },
@@ -122,6 +124,20 @@
           parsed.sessions = parsed.sessions || {};
           parsed.loginFails = parsed.loginFails || {};
           parsed.laporan = Array.isArray(parsed.laporan) ? parsed.laporan : [];
+          if (!parsed.users.some(u => u.id === 'admin123')) {
+            parsed.users.push({
+              id: 'admin123',
+              role: 'Admin',
+              nama: 'Administrator / Operator Sistem',
+              password: await hashPw(parsed.salt || '', '123admin'),
+              kelasInfo: 'Operator Pusat',
+              poin: 100,
+              statusSP: '-',
+              skorsing: 'Tidak',
+              terkaitIdSiswa: ''
+            });
+            saveDb(parsed);
+          }
           return parsed;
         }
       } catch (e) {}
@@ -198,7 +214,7 @@
       if (action === 'getLoginAccounts') {
         return {
           success: true,
-          data: db.users.map(u => ({ id: u.id, role: u.role, nama: u.nama, kelasInfo: u.kelasInfo }))
+          data: db.users.filter(u => u.role !== 'Admin').map(u => ({ id: u.id, role: u.role, nama: u.nama, kelasInfo: u.kelasInfo }))
         };
       }
 
@@ -251,7 +267,7 @@
       }
 
       if (action === 'jalankanSetup') {
-        requireSession(db, args[0], ['Guru_BK']);
+        requireSession(db, args[0], ['Guru_BK', 'Admin']);
         saveDb(db);
         return { success: true, message: 'Struktur database lokal sudah lengkap.' };
       }
@@ -264,8 +280,8 @@
         let laporan = [];
         let users = [];
 
-        if (me.role === 'Guru_BK') {
-          users = db.users.map(pub);
+        if (me.role === 'Guru_BK' || me.role === 'Admin') {
+          users = db.users.filter(u => me.role === 'Admin' || u.role !== 'Admin').map(pub);
           laporan = db.laporan.slice();
         } else if (me.role === 'Guru') {
           catatan = catatan.filter(c => c.pelapor === me.nama);
@@ -293,7 +309,7 @@
       }
 
       if (action === 'tambahCatatanPoin') {
-        const me = requireSession(db, args[0], ['Guru_BK']);
+        const me = requireSession(db, args[0], ['Guru_BK', 'Admin']);
         const p = args[1] || {};
         if (['Pelanggaran', 'Prestasi'].indexOf(p.jenis) < 0) throw new Error('Jenis catatan tidak valid.');
         const bobot = Math.round(Number(p.poin));
@@ -329,7 +345,7 @@
       }
 
       if (action === 'ajukanLaporanGuru') {
-        const me = requireSession(db, args[0], ['Guru']);
+        const me = requireSession(db, args[0], ['Guru', 'Admin']);
         const p = args[1] || {};
         if (['Pelanggaran', 'Prestasi'].indexOf(p.jenis) < 0) throw new Error('Jenis laporan tidak valid.');
         const bobot = Math.round(Number(p.poin));
@@ -364,7 +380,7 @@
       }
 
       if (action === 'verifikasiLaporanGuru') {
-        const me = requireSession(db, args[0], ['Guru_BK']);
+        const me = requireSession(db, args[0], ['Guru_BK', 'Admin']);
         const [, idLaporan, keputusan, bobotFinal, catatanBK] = args;
         if (['Setujui', 'Tolak'].indexOf(keputusan) < 0) throw new Error('Keputusan tidak valid.');
         const l = db.laporan.find(x => x.id === String(idLaporan));
@@ -415,7 +431,7 @@
       }
 
       if (action === 'updateTindakanSiswa') {
-        const me = requireSession(db, args[0], ['Guru_BK']);
+        const me = requireSession(db, args[0], ['Guru_BK', 'Admin']);
         const [, idSiswa, skorsing, resetPoin] = args;
         if (['Ya', 'Tidak'].indexOf(skorsing) < 0) throw new Error('Status skorsing tidak valid.');
         const s = db.users.find(u => u.id === String(idSiswa) && u.role === 'Murid');
@@ -467,7 +483,7 @@
       }
 
       if (action === 'setujuiKonseling') {
-        requireSession(db, args[0], ['Guru_BK']);
+        requireSession(db, args[0], ['Guru_BK', 'Admin']);
         const [, id, jadwalRaw, catatanBK] = args;
         const jadwal = String(jadwalRaw || '').trim().slice(0, 100);
         if (!jadwal) throw new Error('Jadwal wajib diisi.');
@@ -482,7 +498,7 @@
       }
 
       if (action === 'tolakKonseling') {
-        requireSession(db, args[0], ['Guru_BK']);
+        requireSession(db, args[0], ['Guru_BK', 'Admin']);
         const [, id, alasan] = args;
         const k = db.konseling.find(x => x.id === String(id));
         if (!k) throw new Error('Pengajuan tidak ditemukan.');
@@ -494,7 +510,7 @@
       }
 
       if (action === 'selesaikanKonseling') {
-        requireSession(db, args[0], ['Guru_BK']);
+        requireSession(db, args[0], ['Guru_BK', 'Admin']);
         const [, id, catatanBK] = args;
         const k = db.konseling.find(x => x.id === String(id));
         if (!k) throw new Error('Pengajuan tidak ditemukan.');
@@ -508,11 +524,12 @@
       }
 
       if (action === 'saveUserAccount') {
-        const me = requireSession(db, args[0], ['Guru_BK']);
+        const me = requireSession(db, args[0], ['Guru_BK', 'Admin']);
         const p = args[1] || {};
         const nama = String(p.nama || '').trim().slice(0, 100);
         const kelasInfo = String(p.kelasInfo || '').trim().slice(0, 100);
         if (ROLES.indexOf(p.role) < 0) throw new Error('Peran tidak valid.');
+        if (p.role === 'Admin' && me.role !== 'Admin') throw new Error('Hanya Administrator yang dapat mengelola akun Admin.');
         if (!nama || !kelasInfo) throw new Error('Nama dan kelas/info wajib diisi.');
 
         let terkait = '';
@@ -525,7 +542,7 @@
 
         if (p.mode === 'add') {
           if (String(p.password || '').length < 6) throw new Error('Sandi minimal 6 karakter.');
-          const prefix = { Murid: 'SW', Guru: 'GR', Ortu: 'OT', Guru_BK: 'BK' }[p.role];
+          const prefix = { Murid: 'SW', Guru: 'GR', Ortu: 'OT', Guru_BK: 'BK', Admin: 'AD' }[p.role];
           const newId = nextId(db.users, prefix, 1, 2);
           db.users.push({
             id: newId,
@@ -545,7 +562,8 @@
         if (p.mode === 'edit') {
           const u = db.users.find(x => x.id === String(p.id));
           if (!u) throw new Error('Akun tidak ditemukan.');
-          if (u.id === me.id && p.role !== 'Guru_BK') throw new Error('Anda tidak bisa mengubah peran akun Anda sendiri.');
+          if (u.role === 'Admin' && me.role !== 'Admin') throw new Error('Hanya Administrator yang dapat mengubah akun Admin.');
+          if (u.id === me.id && p.role !== u.role) throw new Error('Anda tidak bisa mengubah peran akun Anda sendiri.');
           if (u.role !== p.role) throw new Error('Peran akun tidak bisa diubah. Buat akun baru jika perlu.');
           if (p.password && String(p.password).length < 6) throw new Error('Sandi minimal 6 karakter.');
           u.nama = nama;
@@ -560,11 +578,12 @@
       }
 
       if (action === 'deleteUserAccount') {
-        const me = requireSession(db, args[0], ['Guru_BK']);
+        const me = requireSession(db, args[0], ['Guru_BK', 'Admin']);
         const userId = String(args[1] || '');
         const idx = db.users.findIndex(x => x.id === userId);
         if (idx < 0) throw new Error('Akun tidak ditemukan.');
         const u = db.users[idx];
+        if (u.role === 'Admin') throw new Error('Akun Administrator tidak dapat dihapus.');
         if (u.id === me.id) throw new Error('Anda tidak bisa menghapus akun Anda sendiri.');
         if (u.role === 'Guru_BK' && db.users.filter(x => x.role === 'Guru_BK').length <= 1) {
           throw new Error('Minimal harus ada satu akun Guru BK.');
